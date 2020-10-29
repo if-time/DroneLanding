@@ -29,6 +29,7 @@ import com.liyang.droneplus.application.DemoApplication;
 import com.liyang.droneplus.graduationproject.detection.ClassifierFromTensorFlow;
 import com.liyang.droneplus.graduationproject.detection.TensorFlowObjectDetectionAPIModel;
 import com.liyang.droneplus.graduationproject.view.AutoFitTextureView;
+import com.liyang.droneplus.graduationproject.view.TouchPaintView;
 
 import java.io.IOException;
 import java.util.List;
@@ -54,7 +55,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private static final int TF_OD_API_INPUT_SIZE = 300;
 
     private int widthDisplay;
-    private int height;
+    private int heightDisplay;
 
     private static float canvasWidth = 0;
     private static float canvasHeight = 0;
@@ -77,7 +78,9 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private Button btnThermal;
     private Button btnThread;
 
-    private ImageView imageView;
+    private ImageView imageViewForFrame;
+
+    private TouchPaintView touchView;
 
 
     @Override
@@ -86,6 +89,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         setContentView(R.layout.activity_main2);
 
         initUI();
+        getDisplaySize();
 
         // The callback for receiving the raw H264 video data for camera live view
         mReceivedVideoDataListener = new VideoFeeder.VideoDataListener() {
@@ -104,13 +108,14 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         } catch (IOException e) {
             Log.e(TAG, "Failed to initialize an image classifier.");
         }
-//        startBackgroundThread();
+
     }
 
     private void initUI() {
         // init mVideoSurface
         mVideoSurface = (AutoFitTextureView) findViewById(R.id.video_previewer_surface);
-        imageView = findViewById(R.id.imageView);
+        imageViewForFrame = findViewById(R.id.imageView);
+        //imageViewForFrame.setOnTouchListener(this);
 
         if (null != mVideoSurface) {
             mVideoSurface.setSurfaceTextureListener(this);
@@ -121,7 +126,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         btnThread = findViewById(R.id.btnThread);
         btnThread.setOnClickListener(this);
 
-        getDisplaySize();
+        touchView = (TouchPaintView) findViewById(R.id.touch_view);
     }
 
     /**
@@ -137,7 +142,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             display.getRealSize(point);
         }
         widthDisplay = point.x;
-        height = point.y;
+        heightDisplay = point.y;
     }
 
     private void setThermalConfig() {
@@ -311,79 +316,94 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
      * tensorFlow识别
      */
     private void classifyFrame() {
+        //detectionForTensorFlow();
+
+        canvasWidth = mVideoSurface.getWidth();
+        canvasHeight = mVideoSurface.getHeight();
+        imageViewForFrame.getLayoutParams().width = mVideoSurface.getWidth();
+        imageViewForFrame.getLayoutParams().height = mVideoSurface.getHeight();
+
+        final Bitmap croppedBitmap = Bitmap.createBitmap((int) canvasWidth, (int) canvasHeight, Bitmap.Config.ARGB_8888);
+        final Canvas canvas = new Canvas(croppedBitmap);
+
+        RectF rectF = touchView.getFrameLocation();
+        // 截取此区域的bitmap传入fdsst中
+
+        // 获取到识别出的位置并画框
+
+    }
+
+    private void detectionForTensorFlow() {
         if (classifierFromTensorFlow == null) {
             showToast("Uninitialized Classifier or invalid context.");
             return;
         }
+
         Bitmap bitmap = mVideoSurface.getBitmap(TF_OD_API_INPUT_SIZE, TF_OD_API_INPUT_SIZE);
 
-       if (bitmap == null) {
-           showToast("bitmap == null");
-           return;
-       } else {
-//           showToast("bitmap == getWidth: " + bitmap.getWidth() + " bitmap == getHeight: " + bitmap.getHeight());
-           final List<ClassifierFromTensorFlow.Recognition> results = classifierFromTensorFlow.recognizeImage(bitmap);
+        if (bitmap == null) {
+            showToast("bitmap == null");
+            return;
+        } else {
+            //           showToast("bitmap == getWidth: " + bitmap.getWidth() + " bitmap == getHeight: " + bitmap.getHeight());
+            final List<ClassifierFromTensorFlow.Recognition> results = classifierFromTensorFlow.recognizeImage(bitmap);
 
-           canvasWidth = mVideoSurface.getWidth();
-           canvasHeight = mVideoSurface.getHeight();
-//           if (mVideoSurface.getWidth() != imageView.getWidth() || mVideoSurface.getHeight() != imageView.getHeight()) {
-//               canvasWidth = mVideoSurface.getWidth();
-//               canvasHeight = mVideoSurface.getHeight();
-               imageView.getLayoutParams().width = mVideoSurface.getWidth();
-               imageView.getLayoutParams().height = mVideoSurface.getHeight();
-//           }
-           bitmap.recycle();
+            canvasWidth = mVideoSurface.getWidth();
+            canvasHeight = mVideoSurface.getHeight();
+            //           if (mVideoSurface.getWidth() != imageView.getWidth() || mVideoSurface.getHeight() != imageView.getHeight()) {
+            //               canvasWidth = mVideoSurface.getWidth();
+            //               canvasHeight = mVideoSurface.getHeight();
+            imageViewForFrame.getLayoutParams().width = mVideoSurface.getWidth();
+            imageViewForFrame.getLayoutParams().height = mVideoSurface.getHeight();
+            //           }
+            bitmap.recycle();
 
-           final Bitmap croppedBitmap = Bitmap.createBitmap((int) canvasWidth, (int) canvasHeight, Bitmap.Config.ARGB_8888);
-           final Canvas canvas = new Canvas(croppedBitmap);
+            final Bitmap croppedBitmap = Bitmap.createBitmap((int) canvasWidth, (int) canvasHeight, Bitmap.Config.ARGB_8888);
+            final Canvas canvas = new Canvas(croppedBitmap);
 
-           for (final ClassifierFromTensorFlow.Recognition result : results) {
-               final RectF location = result.getLocation();
-               Log.i(TAG, "classifyFrame: "+ location.bottom);
-               if (location != null && result.getConfidence() >= MINIMUM_CONFIDENCE_TF_OD_API) {
-                   Paint paint = new Paint();
-                   Paint paint1 = new Paint();
-                   if (result.getTitle().equals("openeyes")) {
-                       paint.setColor(Color.GREEN);
-                       paint1.setColor(Color.GREEN);
-                   } else if (result.getTitle().equals("closeeyes")) {
-                       paint.setColor(Color.RED);
-                       paint1.setColor(Color.RED);
+            for (final ClassifierFromTensorFlow.Recognition result : results) {
+                final RectF location = result.getLocation();
+                Log.i(TAG, "classifyFrame: " + location.bottom);
+                if (location != null && result.getConfidence() >= MINIMUM_CONFIDENCE_TF_OD_API) {
+                    Paint paint = new Paint();
+                    Paint paint1 = new Paint();
+                    if (result.getTitle().equals("openeyes")) {
+                        paint.setColor(Color.GREEN);
+                        paint1.setColor(Color.GREEN);
+                    } else if (result.getTitle().equals("closeeyes")) {
+                        paint.setColor(Color.RED);
+                        paint1.setColor(Color.RED);
 
-                   } else if (result.getTitle().equals("phone")) {
-                       paint.setColor(0xFFFF9900);
-                       paint1.setColor(0xFFFF9900);
+                    } else if (result.getTitle().equals("phone")) {
+                        paint.setColor(0xFFFF9900);
+                        paint1.setColor(0xFFFF9900);
 
-                   } else if (result.getTitle().equals("smoke")) {
-                       paint.setColor(Color.YELLOW);
-                       paint1.setColor(Color.YELLOW);
-                   } else
-                       paint.setColor(Color.WHITE);
+                    } else if (result.getTitle().equals("smoke")) {
+                        paint.setColor(Color.YELLOW);
+                        paint1.setColor(Color.YELLOW);
+                    } else
+                        paint.setColor(Color.WHITE);
 
-                   paint.setStyle(Paint.Style.STROKE);
-                   paint.setStrokeWidth(5.0f);
-                   paint.setAntiAlias(true);
-                   paint1.setStyle(Paint.Style.FILL);
-                   paint1.setAlpha(125);
-                   //                canvas.drawRect(location, paint);
-//                   canvas.drawText();
-                   canvas.drawRect(canvasWidth * location.left / TF_OD_API_INPUT_SIZE, canvasHeight * location.top / TF_OD_API_INPUT_SIZE,
-                           canvasWidth * location.right / TF_OD_API_INPUT_SIZE, canvasHeight * location.bottom / TF_OD_API_INPUT_SIZE, paint);
-                   canvas.drawRect(canvasWidth * location.left / TF_OD_API_INPUT_SIZE, canvasHeight * location.top / TF_OD_API_INPUT_SIZE,
-                           canvasWidth * location.right / TF_OD_API_INPUT_SIZE, canvasHeight * location.bottom / TF_OD_API_INPUT_SIZE, paint1);
-                   canvas.drawRect((float) (canvasWidth * 0.5), (float)(canvasHeight * 0.5),
-                           (float)(canvasWidth * 0.5), (float)(canvasHeight * 0.5), paint);
-               }
+                    paint.setStyle(Paint.Style.STROKE);
+                    paint.setStrokeWidth(5.0f);
+                    paint.setAntiAlias(true);
+                    paint1.setStyle(Paint.Style.FILL);
+                    paint1.setAlpha(125);
+                    //                canvas.drawRect(location, paint);
+                    //                   canvas.drawText();
+                    canvas.drawRect(canvasWidth * location.left / TF_OD_API_INPUT_SIZE, canvasHeight * location.top / TF_OD_API_INPUT_SIZE, canvasWidth * location.right / TF_OD_API_INPUT_SIZE, canvasHeight * location.bottom / TF_OD_API_INPUT_SIZE, paint);
+                    canvas.drawRect(canvasWidth * location.left / TF_OD_API_INPUT_SIZE, canvasHeight * location.top / TF_OD_API_INPUT_SIZE, canvasWidth * location.right / TF_OD_API_INPUT_SIZE, canvasHeight * location.bottom / TF_OD_API_INPUT_SIZE, paint1);
+                    canvas.drawRect((float) (canvasWidth * 0.5), (float) (canvasHeight * 0.5), (float) (canvasWidth * 0.5), (float) (canvasHeight * 0.5), paint);
+                }
 
-           }
-           imageView.post(new Runnable() {
-               @Override
-               public void run() {
-                   imageView.setImageBitmap(croppedBitmap);
-               }
-           });
-       }
-
+            }
+            imageViewForFrame.post(new Runnable() {
+                @Override
+                public void run() {
+                    imageViewForFrame.setImageBitmap(croppedBitmap);
+                }
+            });
+        }
     }
 
     @SuppressLint("NonConstantResourceId")
@@ -399,4 +419,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 break;
         }
     }
+
+
+
 }
