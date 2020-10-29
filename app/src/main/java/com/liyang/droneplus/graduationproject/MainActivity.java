@@ -28,6 +28,7 @@ import com.liyang.droneplus.R;
 import com.liyang.droneplus.application.DemoApplication;
 import com.liyang.droneplus.graduationproject.detection.ClassifierFromTensorFlow;
 import com.liyang.droneplus.graduationproject.detection.TensorFlowObjectDetectionAPIModel;
+import com.liyang.droneplus.graduationproject.interf.ConfirmLocationForTracking;
 import com.liyang.droneplus.graduationproject.view.AutoFitTextureView;
 import com.liyang.droneplus.graduationproject.view.TouchPaintView;
 
@@ -60,6 +61,8 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private static float canvasWidth = 0;
     private static float canvasHeight = 0;
 
+    private boolean runDetection = false;
+
     protected VideoFeeder.VideoDataListener mReceivedVideoDataListener = null;
     // Codec for video live view
     protected DJICodecManager mCodecManager = null;
@@ -71,8 +74,6 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private final Object lock = new Object();
 
     private ClassifierFromTensorFlow classifierFromTensorFlow;
-
-    private boolean runDetection = false;
 
     protected AutoFitTextureView mVideoSurface = null;
     private Button btnThermal;
@@ -90,17 +91,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
         initUI();
         getDisplaySize();
-
-        // The callback for receiving the raw H264 video data for camera live view
-        mReceivedVideoDataListener = new VideoFeeder.VideoDataListener() {
-
-            @Override
-            public void onReceive(byte[] videoBuffer, int size) {
-                if (mCodecManager != null) {
-                    mCodecManager.sendDataToDecoder(videoBuffer, size);
-                }
-            }
-        };
+        initListener();
 
         try {
             // create either a new ImageClassifierQuantizedMobileNet or an ImageClassifierFloatInception
@@ -115,7 +106,6 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         // init mVideoSurface
         mVideoSurface = (AutoFitTextureView) findViewById(R.id.video_previewer_surface);
         imageViewForFrame = findViewById(R.id.imageView);
-        //imageViewForFrame.setOnTouchListener(this);
 
         if (null != mVideoSurface) {
             mVideoSurface.setSurfaceTextureListener(this);
@@ -128,6 +118,31 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
         touchView = (TouchPaintView) findViewById(R.id.touch_view);
     }
+
+    private void initListener() {
+
+        // The callback for receiving the raw H264 video data for camera live view
+        mReceivedVideoDataListener = new VideoFeeder.VideoDataListener() {
+
+            @Override
+            public void onReceive(byte[] videoBuffer, int size) {
+                if (mCodecManager != null) {
+                    mCodecManager.sendDataToDecoder(videoBuffer, size);
+                }
+            }
+        };
+
+        // 来自TouchPaintView
+        // 确定点击到了画框区域
+        touchView.setConfirmLocationForTracking(new ConfirmLocationForTracking() {
+            @Override
+            public void confirmForTracking() {
+                showToast("回调");
+            }
+        });
+
+    }
+
 
     /**
      * 获取屏幕大小
@@ -419,7 +434,4 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 break;
         }
     }
-
-
-
 }

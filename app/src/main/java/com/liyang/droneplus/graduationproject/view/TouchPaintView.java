@@ -12,7 +12,11 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
+import com.liyang.droneplus.graduationproject.interf.ConfirmLocationForTracking;
+
 public class TouchPaintView extends View {
+
+    private ConfirmLocationForTracking confirmLocationForTracking;
 
     private Bitmap mBitmap;
     private Canvas mCanvas;
@@ -64,14 +68,12 @@ public class TouchPaintView extends View {
     public boolean dispatchTouchEvent(MotionEvent event) {
 
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
-            // 获取点击坐标
             float x = event.getRawX();
             float y = event.getRawY();
             if (isTouchPointInView(x, y)) {
-                // 不再分发事件
                 Toast.makeText(getContext(), x + " " + y, Toast.LENGTH_LONG).show();
                 isNeedFrame = false;
-
+                confirmForTracking();
                 return true;
             }
         }
@@ -172,4 +174,15 @@ public class TouchPaintView extends View {
         return rectFForFrame.contains(x, y);
     }
 
+
+    public void setConfirmLocationForTracking(ConfirmLocationForTracking confirmLocationForTracking) {
+        this.confirmLocationForTracking = confirmLocationForTracking;
+    }
+
+    /**
+     * 返回MainActivity
+     */
+    public void confirmForTracking() {
+        confirmLocationForTracking.confirmForTracking();
+    }
 }
