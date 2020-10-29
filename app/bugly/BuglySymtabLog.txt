@@ -1,0 +1,4 @@
+symbolFile=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_armeabi-v7a-09842.zip
+file=E:\androidCode\DJIDemo\droneplus_landing\app\build\intermediates\cmake\debug\obj\armeabi-v7a\libapriltag.so
+uuid=098425cd2fe0a7f8f4cd6dea8fba6277
+

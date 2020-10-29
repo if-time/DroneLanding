@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/colorBlack"
+    android:orientation="vertical">
+
+    <!--    w='320dp'-->
+
+    <TextView
+        android:id="@+id/dialog_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_margin="5dp"
+        android:text="修改航点信息"
+        android:textColor="@color/colorWhite"
+        android:textSize="20sp" />
+
+    <LinearLayout
+        android:id="@+id/gps_set"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/dialog_title"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:background="@color/colorWhite" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="5dp"
+            android:text="位置设置"
+            android:textColor="@color/colorWhite"></TextView>
+
+        <!--高度-->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginRight="10dp"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="高                度："
+                android:textColor="@color/colorWhite"></TextView>
+
+            <ImageView
+                android:id="@+id/height_M"
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:src="@mipmap/dec_num" />
+
+            <EditText
+                android:id="@+id/height_text"
+                android:layout_width="90dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@color/colorWhite"
+                android:gravity="center"
+                android:text="50"
+                android:textStyle="bold"></EditText>
+
+            <ImageView
+                android:id="@+id/height_P"
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:src="@mipmap/add_num" />
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:background="@color/colorWhite" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/action_set"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/gps_set"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:text="动作设置"
+            android:textColor="@color/colorWhite"></TextView>
+
+        <!--环绕-->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:id="@+id/add_hot"
+                android:layout_width="100dp"
+                android:layout_height="35dp"
+                android:layout_gravity="center"
+                android:layout_marginLeft="10dp"
+                android:gravity="center"
+                android:text="是否添加环绕："
+                android:textColor="@color/colorWhite" />
+
+            <RadioGroup
+                android:id="@+id/is_hot_set"
+                android:layout_width="100dp"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/is_hot"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="3"
+                    android:text="是"
+                    android:textColor="@color/colorWhite" />
+
+                <RadioButton
+                    android:id="@+id/no_hot"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="3"
+                    android:checked="true"
+                    android:text="否"
+                    android:textColor="@color/colorWhite" />
+
+            </RadioGroup>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/is_add_hot"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="环绕半径  (M)："
+                android:textColor="@color/colorWhite"></TextView>
+
+            <ImageView
+                android:id="@+id/hot_M"
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:src="@mipmap/dec_num" />
+
+            <EditText
+                android:id="@+id/radius_text"
+                android:layout_width="90dp"
+                android:layout_height="wrap_content"
+                android:background="@color/colorWhite"
+                android:gravity="center"
+                android:text="5"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/hot_P"
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:src="@mipmap/add_num" />
+
+        </LinearLayout>
+
+        <!--相机-->
+        <LinearLayout
+            android:id="@+id/is_add_camera"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <RadioGroup
+                android:id="@+id/camera_type"
+                android:layout_width="310dp"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginRight="0dp"
+                android:layout_marginBottom="10dp"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/photo"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="3"
+                    android:text="拍照"
+                    android:textColor="@color/colorWhite" />
+
+                <RadioButton
+                    android:id="@+id/video_yes"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="3"
+                    android:text="录像"
+                    android:textColor="@color/colorWhite" />
+
+                <RadioButton
+                    android:id="@+id/video_no"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="4"
+                    android:text="结束录像"
+                    android:textColor="@color/colorWhite" />
+
+                <RadioButton
+                    android:id="@+id/no"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="4"
+                    android:checked="true"
+                    android:text="无动作"
+                    android:textColor="@color/colorWhite" />
+            </RadioGroup>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginBottom="10dp"
+                android:orientation="horizontal"
+                android:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="飞机偏航角度："
+                    android:textColor="@color/white" />
+
+                <ImageView
+                    android:id="@+id/flight_M"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:src="@mipmap/dec_num" />
+
+                <EditText
+                    android:id="@+id/flight_text"
+                    android:layout_width="90dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:background="@color/white"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/flight_P"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:src="@mipmap/add_num" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginBottom="10dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="相机俯仰角度："
+                    android:textColor="@color/colorWhite" />
+
+                <ImageView
+                    android:id="@+id/camera_M"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:src="@mipmap/dec_num" />
+
+                <EditText
+                    android:id="@+id/camera_text"
+                    android:layout_width="90dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:background="@color/colorWhite"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/camera_P"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:src="@mipmap/add_num" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_margin="10dp"
+            android:background="@color/colorBlack" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_cancel"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_margin="15dp"
+                android:background="@drawable/shape_btn_background"
+                android:padding="5dp"
+                android:text="取消" />
+
+            <Button
+                android:id="@+id/btn_confirm"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_margin="15dp"
+                android:background="@drawable/shape_btn_background"
+                android:padding="5dp"
+                android:text="确定" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+
+</RelativeLayout>

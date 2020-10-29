@@ -1,0 +1,6 @@
+<resources>
+    <!-- Default screen margins, per the Android Design guidelines. -->
+
+    <!--追踪-->
+    <dimen name="test_log_textsize">17sp</dimen>
+</resources>

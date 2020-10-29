@@ -1,0 +1,927 @@
+package com.liyang.droneplus;
+
+import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.graphics.Point;
+import android.graphics.SurfaceTexture;
+import android.os.Build;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.util.Log;
+import android.view.Display;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
+import android.view.TextureView;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
+import android.widget.SlidingDrawer;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.amap.api.maps.CoordinateConverter;
+import com.amap.api.maps.model.LatLng;
+import com.amap.api.maps.model.Marker;
+import com.liyang.droneplus.adpater.RecognitionResultAdapter;
+import com.liyang.droneplus.application.DemoApplication;
+import com.liyang.droneplus.apriltags.ApriltagPoseEstimation;
+import com.liyang.droneplus.apriltags.ApriltagR;
+import com.liyang.droneplus.bean.RecognitionResultItem;
+import com.liyang.droneplus.classifier.ApriltagsDetectAPIModel;
+import com.liyang.droneplus.classifier.RecognizerForAprilTags;
+import com.liyang.droneplus.util.LogUtil;
+import com.liyang.droneplus.util.PIDControlIncTest;
+import com.liyang.droneplus.util.WriteFileUtil;
+
+import java.io.File;
+import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
+
+import dji.common.battery.BatteryState;
+import dji.common.camera.SystemState;
+import dji.common.error.DJIError;
+import dji.common.flightcontroller.CompassCalibrationState;
+import dji.common.flightcontroller.FlightControllerState;
+import dji.common.flightcontroller.FlightMode;
+import dji.common.flightcontroller.simulator.SimulatorState;
+import dji.common.flightcontroller.virtualstick.FlightControlData;
+import dji.common.flightcontroller.virtualstick.FlightCoordinateSystem;
+import dji.common.flightcontroller.virtualstick.RollPitchControlMode;
+import dji.common.flightcontroller.virtualstick.VerticalControlMode;
+import dji.common.flightcontroller.virtualstick.YawControlMode;
+import dji.common.gimbal.GimbalState;
+import dji.common.mission.waypoint.WaypointMission;
+import dji.common.mission.waypoint.WaypointMissionHeadingMode;
+import dji.common.product.Model;
+import dji.common.useraccount.UserAccountState;
+import dji.common.util.CommonCallbacks;
+import dji.sdk.base.BaseProduct;
+import dji.sdk.battery.Battery;
+import dji.sdk.camera.Camera;
+import dji.sdk.camera.VideoFeeder;
+import dji.sdk.codec.DJICodecManager;
+import dji.sdk.flightcontroller.Compass;
+import dji.sdk.flightcontroller.FlightController;
+import dji.sdk.gimbal.Gimbal;
+import dji.sdk.mission.MissionControl;
+import dji.sdk.mission.timeline.TimelineElement;
+import dji.sdk.mission.timeline.TimelineEvent;
+import dji.sdk.mission.waypoint.WaypointMissionOperator;
+import dji.sdk.products.Aircraft;
+import dji.sdk.sdkmanager.DJISDKManager;
+import dji.sdk.useraccount.UserAccountManager;
+
+public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnTouchListener, View.OnClickListener {
+
+    private static final String TAG = MainActivity.class.getSimpleName();
+
+    protected VideoFeeder.VideoDataListener mReceivedVideoDataListener = null;
+
+    private DJICodecManager mCodecManager;      // Codec for video live view
+
+    /*-----------------------------------主界面控件----------------------------------*/
+
+    private RelativeLayout dcontainer; // 与屏幕大小相同的布局容器
+
+    private View vview;
+    private TextureView fpvWidget; // 视频控件，FPVWidget继承自TextureView
+    private RecyclerView resultList; // 显示识别结果的列表控件
+    private RecognitionResultAdapter adapter;
+    private ArrayList<RecognitionResultItem> resultItemArrayList;
+
+    // 下面是自己添加的按钮类控件
+    private ImageView checkWaypointIv; // 查看航点
+    private ImageView startIv; // 开始执行任务
+    private ImageView disableSimulatorIv; // 关闭虚拟摇杆
+    private ImageView landingIv;
+    private Button turnBtn;
+
+    /*-----------------------------------主界面控件----------------------------------*/
+
+    //apriltags详情 抽屉
+    private ImageButton mPushDrawerIb;
+
+    // 物体识别
+    private ImageView detectIv;
+
+    private TextView ultrasonicTv;
+    private TextView yawTv;
+    private TextView pitchTv;
+    private TextView angleTv;
+
+    private double droneGDLocationLat = 36.667094, droneGDLocationLng = 117.140428; // 无人机坐标(高德)
+    private float droneLocationHeight = 30f;
+    private FlightController mFlightController;
+    private Gimbal gimbal;
+    private Battery battery;
+    private Camera camera;
+    public static WaypointMission.Builder waypointMissionBuilder;
+    private float mSpeed = 10.0f;
+    private WaypointMissionHeadingMode mHeadingMode = WaypointMissionHeadingMode.USING_WAYPOINT_HEADING;
+    private WaypointMissionOperator waypointMissionOperator;
+
+    private Compass compass;
+    // 飞机状态
+    private LatLng sourceLatLng; // 无人机位置(真实坐标)
+    private FlightMode flightMode; // 飞行模式
+    private double roll;
+    private double yaw;
+    private double pitch;
+    private int satelliteCount; // 卫星数
+    private float velocityX; // X轴方向的速度
+    private float velocityY; // Y轴方向的速度
+    private float velocityZ; // Z轴方向的速度
+    private float gimbalPitch; // 云台俯仰角
+
+    private float maxAltitude;
+    private int imageCount;
+    private boolean isRecord;
+    private boolean isShot;
+    private long videoStartTime;
+    private long videoEndTime;
+    private int videoLength; // 录像总时长
+
+    private int height; // 移动设配屏幕的高度
+    private int width; // 移动设配屏幕的宽度
+    private float aircraftHeight;
+    private float ultrasonicHeight;
+
+    /*------------------------------下面是timeline飞行控制相关变量--------------------------------*/
+    private MissionControl missionControl;
+    private TimelineEvent preEvent;
+    private TimelineElement preElement;
+    private DJIError preError;
+    private boolean isGetHome;
+    protected double homeLatitude = 181; // 真实坐标
+    protected double homeLongitude = 181; // 真实坐标
+    protected double homeGDLatitude = 181; // 高德坐标
+    protected double homeGDLongitude = 181; // 高德坐标
+    /*-----------------------------上面是timeline飞行控制相关变量--------------------------------*/
+
+
+    /*---------------------------AprilTag识别----------------------------*/
+    public boolean isDetection = false;
+
+    private int id;
+    public double center_x, center_y, left_top_x, left_top_y, right_top_x, right_top_y, right_bottom_x, right_bottom_y, left_bottom_x, left_bottom_y;
+    double t_x = 0;
+    double t_y = 0;
+    double angle_z;
+    double tagCenterX = 0;
+    double tagCenterY = 0;
+
+    float tagErrX = 300;
+    float tagErrY = 300;
+    private ArrayList<ApriltagPoseEstimation> mPoses;
+
+    private volatile boolean tagFlag = false;
+    Thread tagThread;
+
+    private Handler handlerForAprilTags;
+    private HandlerThread handlerThreadForAprilTags;
+    private RecognizerForAprilTags recognizerForAprilTags;
+
+    private PIDControlIncTest pidControlIncTestX;
+    private PIDControlIncTest pidControlIncTestY;
+    private PIDControlIncTest pidControlIncTestTurn;
+
+    // 每一次for循环记录识别的标签
+    private HashMap<Integer, Integer> recResult = new HashMap<>();
+    private int index = 0;
+
+    private boolean firstaprilinit = false;
+    private boolean secondaprilinit = false;
+
+    private boolean virtualStickModeEnabled = true;
+
+    /**
+     * AprilTags 线程
+     */
+    Runnable tagRunnable = new Runnable() {
+        @Override
+        public void run() {
+
+            runInBackgroundForAprilTags(new Runnable() {
+                @Override
+                public void run() {
+                    Log.i("dongtagFlag", "run: tagFlag: " + tagFlag);
+                    while (tagFlag) {
+
+                        long start = System.currentTimeMillis();
+                        // 如果低于0.6米直接降落, 反之计算
+                        if (ultrasonicHeight >= 0.4) {   //0.4
+
+                            // 初始化aprilTags
+                            if (ultrasonicHeight > 3.0) {
+                                if (!firstaprilinit) {
+                                    ApriltagR.apriltagInit("tag36h11", 2, 4, 0.0, 8, 0.04, 5423.612353784232, 5519.056520316598, 1315.1967405060602, 838.5860437396254);
+                                    Log.i("apriltagInit", "run: notfirstRec10");
+                                }
+                                firstaprilinit = true;
+                            }
+                            if (ultrasonicHeight <= 3.0) {
+                                if (!secondaprilinit) {
+                                    Log.i("apriltagInit", "run: notfirstRec0");
+                                    ApriltagR.apriltagInit("tag36h11", 2, 4, 0.0, 8, 0.005184, 5423.612353784232, 5519.056520316598, 1315.1967405060602, 838.5860437396254);
+                                }
+                                secondaprilinit = true;
+                            }
+
+                            Log.i("dongrun", "run: ");
+                            List<RecognizerForAprilTags.Recognition> results = null;
+
+                            if (recognizerForAprilTags != null) {
+                                results = recognizerForAprilTags.recognizeImage(fpvWidget.getBitmap());
+                            }
+
+                            if (results != null) {
+
+                                // 如果有识别结果
+                                if (results.size() > 0) {
+                                    Log.i("dongnotfindmark", "if  results != null : results.size(): " + results.size());
+                                    // 获取标签信息 遍历识别有几个结果
+                                    for (final RecognizerForAprilTags.Recognition result : results) {
+
+                                        resultItemArrayList.add(new RecognitionResultItem(String.valueOf(new BigDecimal(result.getAngle_z()).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue()) + "°", "x:" + String.valueOf(new BigDecimal(result.getT_x()).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue()) + "cm", "y:" + String.valueOf(new BigDecimal(result.getT_y()).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue()) + "cm", "id:" + result.id, "", "", "", "", ""));
+                                        while (resultItemArrayList.size() > 5) {
+                                            resultItemArrayList.remove(0);
+                                        }
+
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                adapter.notifyDataSetChanged();
+                                            }
+                                        });
+
+
+                                    } // for
+                                }
+
+                            }
+                            // run() 执行完一次初始化
+                            Log.i("run()init", " run() 执行完一次初始化");
+                            recResult.clear();
+                            // notfirstRec0 = false;
+                            // notfirstRec10 = false;
+                        } else {
+
+                            flyControl(0, 0, 0, -0.4f);
+                            BaseProduct product = DJISDKManager.getInstance().getProduct();
+                            if (product != null && product.getModel() != null) {
+                                product.getName(new CommonCallbacks.CompletionCallbackWith<String>() {
+                                    @Override
+                                    public void onSuccess(String s) {
+                                        Log.i("product.getName", "onSuccess: " + s);
+                                    }
+
+                                    @Override
+                                    public void onFailure(DJIError djiError) {
+
+                                    }
+                                });
+                                switch (product.getModel()) {
+                                    case MAVIC_2:
+                                    case MAVIC_2_PRO:
+                                    case MAVIC_2_ZOOM:
+                                        Log.i("dongstartLanding", "run: MAVIC_2_ZOOM");
+                                        mFlightController.startLanding(new CommonCallbacks.CompletionCallback() {
+                                            @Override
+                                            public void onResult(DJIError djiError) {
+                                                Log.i("dongstartLanding", "djiError: ");
+                                            }
+                                        });
+                                        break;
+                                    case PHANTOM_4:
+                                    case PHANTOM_4_PRO: // p4p
+                                        Log.i("dongstartLanding", "run: PHANTOM_4_PRO");
+                                        flyControl(0, 0, 0, -0.3f);
+                                        break;
+                                    default:
+                                        Log.i("dongstartLanding", "run: default");
+                                        flyControl(0, 0, 0, -0.3f);
+                                        break;
+                                }
+                            }
+                        } //else 降落
+                        // 若无人机螺旋桨的电机已停止转动
+                        Log.i("dongprogram", "run: " + (System.currentTimeMillis() - start) + "ms");
+                    }
+                }
+            });
+        }
+    };
+
+    /**
+     * 虚拟摇杆功能，可通过程序控制无人机的前、后、左、右、上升、下降的飞行动作
+     *
+     * @param leftRight     正数为右，负数为左
+     * @param frontBack     正数为前，负数为后
+     * @param turnLeftRight
+     * @param upDown        正数为上升，负数为下降
+     */
+    private void flyControl(float leftRight, float frontBack, float turnLeftRight, float upDown) {
+        if (mFlightController == null) {
+            BaseProduct product = DemoApplication.getProductInstance();
+            if (product == null || !product.isConnected()) {
+                setResultToToast("未连接到无人机！");
+                missionControl = null;
+            } else {
+                missionControl = MissionControl.getInstance(); // 任务控制器实例
+                if (product instanceof Aircraft) {
+                    Aircraft aircraft = (Aircraft) DJISDKManager.getInstance().getProduct();
+                    mFlightController = aircraft.getFlightController();
+                }
+            }
+        }
+
+        mFlightController.sendVirtualStickFlightControlData(new FlightControlData(leftRight, frontBack, turnLeftRight, upDown), new CommonCallbacks.CompletionCallback() {
+            @Override
+            public void onResult(DJIError djiError) {
+
+            }
+        });
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        //                loginAccount();
+        super.onCreate(savedInstanceState);
+        // When the compile and target version is higher than 22, please request the
+        // following permissions at runtime to ensure the
+        // SDK work well.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.VIBRATE, Manifest.permission.INTERNET, Manifest.permission.ACCESS_WIFI_STATE, Manifest.permission.WAKE_LOCK, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_NETWORK_STATE, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.CHANGE_WIFI_STATE, Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.SYSTEM_ALERT_WINDOW, Manifest.permission.READ_PHONE_STATE,}, 1);
+        }
+        setContentView(R.layout.activity_main);
+        initUi(savedInstanceState);
+    }
+
+    private void initUi(Bundle savedInstanceState) {
+
+        // 获取屏幕大小
+        WindowManager manager = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
+        Display display = manager.getDefaultDisplay();
+        Point point = new Point();
+        if (Build.VERSION.SDK_INT < 17) {
+            display.getSize(point);
+        } else {
+            display.getRealSize(point);
+        }
+        width = point.x;
+        height = point.y;
+
+        // 地图视频切换
+
+        dcontainer = (RelativeLayout) findViewById(R.id.video_container);
+
+        vview = LayoutInflater.from(this).inflate(R.layout.vidview, null);
+        fpvWidget = vview.findViewById(R.id.video);
+
+        dcontainer.addView(vview, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        pidControlIncTestX = new PIDControlIncTest();
+        pidControlIncTestX.initPID(0.0009f, 0.00002f, 0.00001f);
+        pidControlIncTestY = new PIDControlIncTest();
+        pidControlIncTestY.initPID(0.0009f, 0.00002f, 0.00001f);
+        pidControlIncTestTurn = new PIDControlIncTest();
+        pidControlIncTestTurn.initPID(0.55f, 0f, 0f);
+
+        //apriltags详情 抽屉
+        mPushDrawerIb = (ImageButton) findViewById(R.id.tracking_drawer_control_ib);
+
+//        landingIv = (ImageView) findViewById(R.id.landing_iv);
+        detectIv = (ImageView) findViewById(R.id.detect_button);
+//        checkWaypointIv = (ImageView) findViewById(R.id.check_waypoint_iv);
+        startIv = (ImageView) findViewById(R.id.start);
+        disableSimulatorIv = (ImageView) findViewById(R.id.simulator_stop_iv);
+
+        ultrasonicTv = (TextView) findViewById(R.id.ultrasonic_height);
+
+        yawTv = (TextView) findViewById(R.id.drone_yaw_tv);
+        pitchTv = (TextView) findViewById(R.id.drone_pitch_tv);
+//        angleTv = (TextView) findViewById(R.id.angle_tv_1);
+
+//        turnBtn = (Button) findViewById(R.id.turn_btn);
+
+        landingIv.setOnTouchListener(this);
+        detectIv.setOnTouchListener(this);
+        checkWaypointIv.setOnTouchListener(this);
+        startIv.setOnTouchListener(this);
+        disableSimulatorIv.setOnClickListener(this);
+
+        turnBtn.setOnClickListener(this);
+
+        mPushDrawerIb.setOnClickListener(this);
+
+        if (null != fpvWidget) {
+            fpvWidget.setSurfaceTextureListener(this);
+        }
+
+        // The callback for receiving the raw H264 video data for camera live view
+        // mReceivedVideoDataCallBack = new VideoFeeder.VideoDataCallback()
+        mReceivedVideoDataListener = new VideoFeeder.VideoDataListener() {
+
+            @Override
+            public void onReceive(byte[] videoBuffer, int size) {
+                if (mCodecManager != null) {
+                    Log.i("initPreviewer", "mCodecManager.sendDataToDecoder");
+                    mCodecManager.sendDataToDecoder(videoBuffer, size);
+                }
+            }
+        };
+
+        // 注册无人机监听广播
+        // TODO initFlightController函数在registerReceiver中执行了一次，这里是否重复了？
+        initFlightController();
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(DemoApplication.FLAG_CONNECTION_CHANGE);
+        registerReceiver(mReceiver, filter);
+
+        resultList = (RecyclerView) findViewById(R.id.recognition_result_list);
+        resultData();
+        resultList.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false));
+        adapter = new RecognitionResultAdapter(resultItemArrayList);
+        resultList.setAdapter(adapter);
+        resultList.setOnTouchListener(this);
+
+    }
+
+    // 监听与无人机连接状态的广播
+    protected BroadcastReceiver mReceiver = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            onProductConnectionChange();
+        }
+    };
+
+    private void onProductConnectionChange() {
+        initFlightController();
+        initPreviewer();
+    }
+
+    /**
+     * 初始化无人机控制，并获取无人机位置、各种状态
+     */
+    private void initFlightController() {
+        BaseProduct product = DemoApplication.getProductInstance();
+        if (product == null || !product.isConnected()) {
+            setResultToToast("未连接到无人机！");
+            missionControl = null;
+        } else {
+            missionControl = MissionControl.getInstance(); // 任务控制器实例
+            if (product instanceof Aircraft) {
+                //                mFlightController = ((Aircraft) product).getFlightController();
+                Aircraft aircraft = (Aircraft) DJISDKManager.getInstance().getProduct();
+                mFlightController = aircraft.getFlightController();
+                gimbal = product.getGimbal();
+                battery = product.getBattery();
+                camera = product.getCamera();
+            }
+        }
+
+        // 云台
+        if (gimbal != null) {
+            gimbal.setStateCallback(new GimbalState.Callback() {
+                @Override
+                public void onUpdate(@NonNull final GimbalState gimbalState) {
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            gimbalPitch = gimbalState.getAttitudeInDegrees().getPitch();
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    pitchTv.setText("gimbalPitch: " + gimbalPitch + "°");
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
+        // 相机
+        if (camera != null) {
+            camera.setSystemStateCallback(new SystemState.Callback() {
+                @Override
+                public void onUpdate(@NonNull SystemState systemState) {
+                    if (systemState.isShootingSinglePhoto() && !isShot) {
+                        imageCount++;
+                        Log.i("Timeline", "imageCount:" + imageCount);
+                        isShot = true;
+                    } else if (!systemState.isShootingSinglePhoto() && isShot) {
+                        Log.i("Timeline", "Shooting Single Photo is End.imageCount:" + imageCount);
+                        isShot = false;
+                    }
+                    if (systemState.isRecording() && !isRecord) {
+                        videoStartTime = System.currentTimeMillis();
+                        Log.i("Timeline", "videoTimeStart:" + videoStartTime);
+                        isRecord = true;
+                    } else if (!systemState.isRecording() && isRecord) {
+                        videoEndTime = System.currentTimeMillis();
+                        videoLength += (int) (videoEndTime - videoStartTime);
+                        Log.i("Timeline", "videoTimeEnd:" + videoEndTime);
+                        Log.i("Timeline", "videoLength:" + videoLength);
+                        isRecord = false;
+                    }
+                }
+            });
+
+            camera.getLensInformation(new CommonCallbacks.CompletionCallbackWith<String>() {
+                @Override
+                public void onSuccess(String s) {
+                    Log.i("donggetLensInformation", "onSuccess: " + s);
+                }
+
+                @Override
+                public void onFailure(DJIError djiError) {
+                    Log.i("donggetLensInformation", "onFailure: ");
+                }
+            });
+        }
+
+        // 无人机
+        if (mFlightController != null) {
+
+            compass = mFlightController.getCompass();
+            // 指南针
+            Log.i("dongcompass", "initFlightController: " + compass.isCalibrating());
+
+            compass.setCalibrationStateCallback(new CompassCalibrationState.Callback() {
+                @Override
+                public void onUpdate(@NonNull CompassCalibrationState compassCalibrationState) {
+
+                }
+            });
+
+            mFlightController.setRollPitchControlMode(RollPitchControlMode.VELOCITY);
+            mFlightController.setYawControlMode(YawControlMode.ANGULAR_VELOCITY);
+            //            mFlightController.setYawControlMode(YawControlMode.ANGLE);
+            mFlightController.setVerticalControlMode(VerticalControlMode.VELOCITY);
+            mFlightController.setRollPitchCoordinateSystem(FlightCoordinateSystem.BODY);
+            mFlightController.getSimulator().setStateCallback(new SimulatorState.Callback() {
+                @Override
+                public void onUpdate(final SimulatorState stateData) {
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+
+                            String yaw = String.format("%.2f", stateData.getYaw());
+                            String pitch = String.format("%.2f", stateData.getPitch());
+                            String roll = String.format("%.2f", stateData.getRoll());
+                            String positionX = String.format("%.2f", stateData.getPositionX());
+                            String positionY = String.format("%.2f", stateData.getPositionY());
+                            String positionZ = String.format("%.2f", stateData.getPositionZ());
+                            Log.i("Timeline", "simulator yaw:" + yaw + " |pitch:" + pitch + " |roll" + roll + " |positionX:" + positionX + " |positionY" + positionY + " |positionZ:" + positionZ);
+                        }
+                    });
+                }
+            });
+            mFlightController.setStateCallback(new FlightControllerState.Callback() {
+                @Override
+                public void onUpdate(FlightControllerState djiFlightControllerCurrentState) {
+                    sourceLatLng = new LatLng(djiFlightControllerCurrentState.getAircraftLocation().getLatitude(), djiFlightControllerCurrentState.getAircraftLocation().getLongitude());
+                    aircraftHeight = djiFlightControllerCurrentState.getAircraftLocation().getAltitude();
+                    ultrasonicHeight = djiFlightControllerCurrentState.getUltrasonicHeightInMeters();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ultrasonicTv.setText(ultrasonicHeight + " m");
+                        }
+                    });
+                    if (maxAltitude < aircraftHeight) {
+                        maxAltitude = aircraftHeight;
+                    }
+                    Log.i("aircraftHeight", "aircraftHeight:" + aircraftHeight);
+                    flightMode = djiFlightControllerCurrentState.getFlightMode();
+                    roll = djiFlightControllerCurrentState.getAttitude().roll;
+                    yaw = djiFlightControllerCurrentState.getAttitude().yaw;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            yawTv.setText("yaw: " + yaw + "°");
+                        }
+                    });
+                    pitch = djiFlightControllerCurrentState.getAttitude().pitch;
+                    satelliteCount = djiFlightControllerCurrentState.getSatelliteCount();
+                    velocityX = djiFlightControllerCurrentState.getVelocityX();
+                    velocityY = djiFlightControllerCurrentState.getVelocityY();
+                    velocityZ = djiFlightControllerCurrentState.getVelocityZ();
+
+                    Log.i("dongyaw", "yaw: " + yaw);
+
+                    CoordinateConverter converter = new CoordinateConverter(getApplicationContext());
+                    converter.from(CoordinateConverter.CoordType.GPS);
+                    // sourceLatLng 待转换坐标点 LatLng类型
+                    converter.coord(sourceLatLng);
+                    // 执行转换操作，转换为高德坐标
+                    LatLng desLatLng = converter.convert();
+                    droneGDLocationLat = desLatLng.latitude;
+                    droneGDLocationLng = desLatLng.longitude;
+                    //                    Log.i("dongupdateDroneState", "onUpdate: droneGDLocationLat: " + droneGDLocationLat + " droneGDLocationLat: " + droneGDLocationLat);
+                    Log.i("dongupdateDroneState", "onUpdate: droneGDLocationLat: " + sourceLatLng.latitude + " droneGDLocationLat: " + sourceLatLng.longitude);
+                    if (!isGetHome) { // 获取home点坐标
+                        homeLatitude = sourceLatLng.latitude;
+                        homeLongitude = sourceLatLng.longitude;
+                        homeGDLatitude = desLatLng.latitude;
+                        homeGDLongitude = desLatLng.longitude;
+                        isGetHome = true;
+                    }
+                    // droneLocationHeight = djiFlightControllerCurrentState.getAircraftLocation().getAltitude();
+
+                }
+            });
+        }
+    }
+
+    @Override
+    public boolean onTouch(View v, MotionEvent motionEvent) {
+        switch (v.getId()) {
+            case R.id.detect_button:
+                if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
+                    detectIv.setImageResource(R.mipmap.detect_close_p);
+                }
+                if (motionEvent.getAction() == MotionEvent.ACTION_UP) {
+
+                    // 如果没有开始识别，打开选择识别模式的对话框
+                    if (!isDetection) {
+                        final AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+                        alertDialog.show();
+
+                        Window window = alertDialog.getWindow();
+                        //实现提示窗体透明的代码
+                        WindowManager.LayoutParams attributes = window.getAttributes();
+                        attributes.alpha = 0.6f;
+                        window.setAttributes(attributes);
+                        window.setContentView(R.layout.detection_dialog);
+
+                        Button btn_detection = window.findViewById(R.id.btn_detection);
+                        Button btn_cancel = window.findViewById(R.id.btn_cancel);
+
+                        btn_detection.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                //                                Toast.makeText(MainActivity.this, "确定", Toast.LENGTH_SHORT).show();
+
+                                if (!tagFlag) {
+                                    Log.i("dongtagFlag", "onClick: tagRunnable");
+                                    tagFlag = true;
+                                    isDetection = true;
+                                    tagThread = new Thread(tagRunnable);
+                                    tagThread.start();
+                                    detectIv.setImageResource(R.mipmap.detect_open);
+                                    recognizerForAprilTags = new ApriltagsDetectAPIModel();
+                                }
+                                Log.i("dongtagThread", "if onClick: tagThread.isAlive(): " + tagThread.isAlive());
+                                alertDialog.dismiss();
+                            }
+                        });
+                    } else {
+                        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                        builder.setTitle("是否关闭识别功能？");
+                        builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                detectIv.setImageResource(R.mipmap.detect_close_u);
+                                Log.i("dongtagThread", "else onClick: tagThread.isAlive(): " + tagThread.isAlive());
+                                if (tagThread != null) { // && tagThread.isAlive()
+                                    Log.i("dongtagThread", "onClick: tagThread.isAlive(): " + tagThread.isAlive());
+                                    tagThread.interrupt();
+                                    tagFlag = false;
+                                    isDetection = false;
+                                    recognizerForAprilTags.close();
+                                }
+
+                                if (mFlightController != null) {
+                                    mFlightController.setVirtualStickModeEnabled(false, new CommonCallbacks.CompletionCallback() {
+                                        @Override
+                                        public void onResult(DJIError djiError) {
+                                            if (djiError != null) {
+                                                setResultToToast(djiError.getDescription());
+                                            } else {
+                                                if (tagFlag) {
+                                                    tagFlag = false;
+                                                    isDetection = false;
+                                                    tagThread.interrupt();
+                                                }
+
+                                                runOnUiThread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        setResultToToast("AlertDialog  关闭识别功能, 虚拟摇杆关闭");
+                                                        disableSimulatorIv.setImageResource(R.mipmap.rc_mode);
+                                                    }
+                                                });
+                                            }
+                                        }
+                                    });
+                                }
+
+                                dialog.dismiss();
+                            }
+                        });
+                        builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                            }
+                        });
+                        builder.show();
+                    }
+                }
+                break;
+        }
+        return true;
+    }
+
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()) {
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+//        double decimation = 4;
+//        double sigma = 0.0;
+//        int nthreads = 8;
+//        String tagFamily = "tag36h11";
+//        //        double tagsize = 0.005184;
+//        double tagsize = 0.04;
+//        double fx = 5423.612353784232;
+//        double fy = 5519.056520316598;
+//        double cx = 1315.1967405060602;
+//        double cy = 838.5860437396254;
+//        ApriltagR.apriltagInit(tagFamily, 2, decimation, sigma, nthreads, tagsize, fx, fy, cx, cy);
+
+        initFlightController();
+        initPreviewer();
+
+        handlerThreadForAprilTags = new HandlerThread("AprilTags");
+        handlerThreadForAprilTags.start();
+        handlerForAprilTags = new Handler(handlerThreadForAprilTags.getLooper());
+    }
+
+    @Override
+    protected void onPause() {
+
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (mCodecManager != null) {
+            mCodecManager.cleanSurface();
+            mCodecManager.destroyCodec();
+        }
+        unregisterReceiver(mReceiver);
+        tagFlag = false;
+        if (tagThread != null) {
+            if (tagThread.isAlive()) {
+                tagThread.interrupt();
+            }
+        }
+        isDetection = false;
+        detectIv.setImageResource(R.mipmap.detect_close_u);
+        // 关闭虚拟摇杆
+        if (mFlightController != null) {
+            mFlightController.setVirtualStickModeEnabled(false, new CommonCallbacks.CompletionCallback() {
+                @Override
+                public void onResult(DJIError djiError) {
+                    if (djiError != null) {
+                        setResultToToast(djiError.getDescription());
+                    } else {
+                        //                                                setResultToToast("虚拟摇杆关闭");
+                    }
+                }
+            });
+        }
+        super.onDestroy();
+    }
+
+    private void loginAccount() {
+        UserAccountManager.getInstance().logIntoDJIUserAccount(this, new CommonCallbacks.CompletionCallbackWith<UserAccountState>() {
+            @Override
+            public void onSuccess(final UserAccountState userAccountState) {
+                Toast.makeText(MainActivity.this, "Login Success", Toast.LENGTH_LONG);
+            }
+
+            @Override
+            public void onFailure(DJIError error) {
+                Toast.makeText(MainActivity.this, "Login Error:" + error.getDescription(), Toast.LENGTH_LONG);
+            }
+        });
+
+    }
+
+    private void setResultToToast(final String string) {
+        MainActivity.this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(MainActivity.this, string, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /**
+     * 学习一下Handler和HandlerThread
+     *
+     * @param r
+     */
+    protected synchronized void runInBackgroundForAprilTags(final Runnable r) {
+        if (handlerForAprilTags != null) {
+            handlerForAprilTags.post(r);
+        }
+    }
+
+    /**
+     * 显示在左下角的识别结果列表数据
+     */
+    private void resultData() {
+        resultItemArrayList = new ArrayList<>();
+        RecognitionResultItem recognitionResultItem1 = new RecognitionResultItem("等待识别...", "", "", "", "", "", "", "", "");
+        resultItemArrayList.add(recognitionResultItem1);
+        for (int i = 0; i < 4; i++) {
+            RecognitionResultItem recognitionResultItem = new RecognitionResultItem("", "", "", "", "", "", "", "", "");
+            resultItemArrayList.add(recognitionResultItem);
+        }
+    }
+
+    private void initPreviewer() {
+
+        BaseProduct product = DemoApplication.getProductInstance();
+        Log.i("initPreviewer", "DemoApplication.getProductInstance()");
+
+        if (product == null || !product.isConnected()) {
+
+        } else {
+            if (null != fpvWidget) {
+                fpvWidget.setSurfaceTextureListener(this);
+                Log.i("initPreviewer", "fpvWidget.setSurfaceTextureListener");
+            }
+            if (!product.getModel().equals(Model.UNKNOWN_AIRCRAFT)) {
+                Log.i("initPreviewer", "videoFeeder setCallback");
+                // VideoFeeder.getInstance().getPrimaryVideoFeed().setCallback(mReceivedVideoDataCallBack);
+                VideoFeeder.getInstance().getPrimaryVideoFeed().addVideoDataListener(mReceivedVideoDataListener);
+            }
+        }
+    }
+
+    @Override
+    public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+        Log.e(TAG, "onSurfaceTextureAvailable");
+        if (mCodecManager == null) {
+            mCodecManager = new DJICodecManager(this, surface, width, height);
+        }
+    }
+
+    @Override
+    public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+        Log.e(TAG, "onSurfaceTextureSizeChanged");
+    }
+
+    @Override
+    public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+        Log.e(TAG, "onSurfaceTextureDestroyed");
+        if (mCodecManager != null) {
+            mCodecManager.cleanSurface();
+            mCodecManager = null;
+        }
+        return false;
+    }
+
+    @Override
+    public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+
+    }
+
+}
