@@ -21,7 +21,9 @@ add_library( # Sets the name of the library.
 
         # Provides a relative path to your source file(s).
         native-lib.cpp
+
         tracker.cpp
+
         apriltag/apriltag.c
         apriltag/apriltag_pose.c
         apriltag/apriltag_quad_thresh.c
@@ -48,11 +50,26 @@ add_library( # Sets the name of the library.
         apriltag/tag16h5.c
         apriltag/tag25h9.c
         apriltag/tag36h11.c
+
+        fdsst/fdssttracker.cpp
+        fdsst/fdssttracker.hpp
+        fdsst/ffttools.hpp
+        fdsst/fhog.cpp
+        fdsst/fhog.h
+        fdsst/labdata.hpp
+        fdsst/recttools.hpp
+        fdsst/sse.hpp
+        fdsst/SSE2NEON.h
+        fdsst/tracker.h
+
+        trackingTargetForFDSST.cpp
         )
 
 include_directories(apriltag)
 include_directories(Eigen)
 include_directories(include)
+
+include_directories(fdsst)
 
 target_include_directories(apriltag
         PRIVATE
