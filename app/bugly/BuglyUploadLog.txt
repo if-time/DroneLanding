@@ -2,3 +2,19 @@ file=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_
 sha1=56f0d506dab49e4e40a02b6cca4591848f976135
 appId=4fb6ee3233
 
+file=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_armeabi-v7a-f2365.zip
+sha1=cdb6d26ac33b6b27fe3e17ad2fe67cc7048079f8
+appId=4fb6ee3233
+
+file=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_armeabi-v7a-ea5af.zip
+sha1=aed47d3f1e493394689f0fd8b4e8390f7bf80de1
+appId=4fb6ee3233
+
+file=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_armeabi-v7a-52693.zip
+sha1=78142a675309d9bb7c9747a6cbaba60cbd29d97a
+appId=4fb6ee3233
+
+file=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_armeabi-v7a-1ca28.zip
+sha1=cdd2fc1aa14d78a9df359a4133b1e55e2ef5eb53
+appId=4fb6ee3233
+
