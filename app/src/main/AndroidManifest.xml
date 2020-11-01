@@ -3,9 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.liyang.droneplus">
 
-    <uses-permission android:name="android.permission.READ_LOGS" />
-
-    <!-- DJI SDK need permission -->
+    <uses-permission android:name="android.permission.READ_LOGS" /> <!-- DJI SDK need permission -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -36,13 +34,15 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:networkSecurityConfig="@xml/network_security_config"
-        android:usesCleartextTraffic="true"
         android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true"
         tools:targetApi="n">
-        <activity android:name=".graduationproject.MainActivity"
+        <activity android:name=".graduationproject.test.PictureConversionTestActivity"></activity>
+        <activity
+            android:name=".graduationproject.MainActivity"
             android:configChanges="orientation"
             android:screenOrientation="landscape">
             <intent-filter>
@@ -50,8 +50,7 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-        <!-- DJI SDK -->
+        </activity> <!-- DJI SDK -->
         <uses-library android:name="com.android.future.usb.accessory" /> <!-- 启用高德地图服务 -->
         <meta-data
             android:name="com.amap.api.v2.apikey"
