@@ -456,9 +456,9 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         } else {
             // 获取到识别出的位置并画框
             long start = System.currentTimeMillis();
-            int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
-            bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
-            FDSSTResultFormJNI result = NativeHelper.getInstance().usingFdsst(pixels, bitmap.getWidth(), bitmap.getHeight());
+//            int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
+//            bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+            FDSSTResultFormJNI result = NativeHelper.getInstance().usingFdsst(bitmap, bitmap.getWidth(), bitmap.getHeight());
             bitmap.recycle();
             showToast("ms: " + (System.currentTimeMillis() - start));
             Paint paint = new Paint();
@@ -469,6 +469,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
             //            showToast(result.x + " " + result.y + " " + (result.width + result.x) + " " + (result.height + result.y));
             canvas.drawRect(result.x, result.y, result.width + result.x, result.height + result.y, paint);
+            writeAprilTagsStatus(result.x, result.y, result.width + result.x, result.height + result.y);
             imageViewForFrame.post(new Runnable() {
                 @Override
                 public void run() {

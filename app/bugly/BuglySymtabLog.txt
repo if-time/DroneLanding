@@ -74,3 +74,7 @@ symbolFile=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapr
 file=E:\androidCode\DJIDemo\droneplus_landing\app\build\intermediates\cmake\debug\obj\armeabi-v7a\libapriltag.so
 uuid=ad639e77692e231d8d6bd5e637bb41ff
 
+symbolFile=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_armeabi-v7a-8f50d.zip
+file=E:\androidCode\DJIDemo\droneplus_landing\app\build\intermediates\cmake\debug\obj\armeabi-v7a\libapriltag.so
+uuid=8f50d344cf2de6efeb0a257735b278ca
+

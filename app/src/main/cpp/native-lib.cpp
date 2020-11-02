@@ -1054,7 +1054,7 @@ Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_initKcf(JNIEnv *env
     BitmapToMat(env, src_bitmap, frame);//图片转化成mat
 //    cvtColor(frame, frame, COLOR_BGRA2BGR);
     cvtColor(frame, frame, COLOR_BGRA2RGB);
-    
+
     bbox.x = left;
     bbox.y = top;
     bbox.width = right - left;
