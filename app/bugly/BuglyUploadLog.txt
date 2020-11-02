@@ -70,3 +70,7 @@ file=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_
 sha1=93bf98bf694ef2a0c8ff010ffa423401d67a1b9b
 appId=4fb6ee3233
 
+file=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_armeabi-v7a-ad639.zip
+sha1=24933de6c10c9f9bb7ce04f1a0452eacad20b80d
+appId=4fb6ee3233
+

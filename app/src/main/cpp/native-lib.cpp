@@ -1033,20 +1033,33 @@ int countKcf = 0;
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_initKcf(JNIEnv *env, jobject thiz,
-                                                                     jintArray input_array,
+//                                                                     jintArray input_array,
+//                                                                     jobject src_mat,
+                                                                     jobject src_bitmap,
                                                                      jfloat left, jfloat top,
                                                                      jfloat right, jfloat bottom,
                                                                      jint width,
                                                                      jint height) {
     // TODO: implement initKcf()
     LOGE("tracker initing in JNI...");
-    int *inputArrayNew = env->GetIntArrayElements(input_array, NULL);
-    if (inputArrayNew == NULL) {
-        LOGE("inputArray is null,check input.");
-    }
-    cv::Mat frame(height, width, CV_8UC3, (unsigned char *) inputArrayNew);
-//    Mat frame;
-//    BitmapToMat(env, src_bitmap, frame);//图片转化成mat
+//    int *inputArrayNew = env->GetIntArrayElements(input_array, NULL);
+//    if (inputArrayNew == NULL) {
+//        LOGE("inputArray is null,check input.");
+//    }
+//    cv::Mat frame(height, width, CV_8UC3, (unsigned char *) inputArrayNew);
+
+//    Mat frame = reinterpret_cast<Mat &>(src_mat);
+
+    Mat frame;
+    BitmapToMat(env, src_bitmap, frame);//图片转化成mat
+//    cvtColor(frame, frame, COLOR_BGRA2BGR);
+    cvtColor(frame, frame, COLOR_BGRA2RGB);
+    
+    bbox.x = left;
+    bbox.y = top;
+    bbox.width = right - left;
+    bbox.height = bottom - top;
+
     rectangle(frame, bbox, Scalar(255, 0, 0), 2, 1);
     imwrite("/storage/emulated/0/result/readYuvkcf.jpg", frame);
     __android_log_print(ANDROID_LOG_ERROR, "mat_jni",
@@ -1054,19 +1067,17 @@ Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_initKcf(JNIEnv *env
                         frame.rows, frame.cols, frame.type());
     tracker = TrackerKCF::create();
     LOGE("tracker init finished in JNI...");
-    bbox.x = left;
-    bbox.y = top;
-    bbox.width = right - left;
-    bbox.height = bottom - top;
+
     //跟踪器初始化
     tracker->init(frame, bbox);
-    LOGE("bbox init finished...");
 }
 
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_usingKcf(JNIEnv *env, jobject thiz,
-                                                                      jintArray input_array,
+//                                                                      jintArray input_array,
+//                                                                      jobject src_mat,
+                                                                      jobject src_bitmap,
                                                                       jint width, jint height) {
     // TODO: implement usingKcf()
 
@@ -1079,15 +1090,18 @@ Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_usingKcf(JNIEnv *en
     //新建Jni类对象
     jobject oStructInfo = env->AllocObject(cSructInfo);
 
-    int *inputArrayNew = env->GetIntArrayElements(input_array, NULL);
-    if (inputArrayNew == NULL) {
-        LOGE("inputArray is null,check input.");
-    }
+//    int *inputArrayNew = env->GetIntArrayElements(input_array, NULL);
+//    if (inputArrayNew == NULL) {
+//        LOGE("inputArray is null,check input.");
+//    }
 
-//    Mat frame;
-//    BitmapToMat(env, src_bitmap, frame);//图片转化成mat
-    cv::Mat frame(height, width, CV_8UC3, (unsigned char *) inputArrayNew);
+//    cv::Mat frame(height, width, CV_8UC3, (unsigned char *) inputArrayNew);
 
+//    Mat frame = reinterpret_cast<Mat &>(src_mat);
+
+    Mat frame;
+    BitmapToMat(env, src_bitmap, frame);//图片转化成mat
+    cvtColor(frame, frame, COLOR_BGRA2RGB);
     __android_log_print(ANDROID_LOG_ERROR, "mat_jni",
                         "frame.rows: %d, frame.cols: %d, frame.type(): %d",
                         frame.rows, frame.cols, frame.type());
@@ -1110,7 +1124,7 @@ Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_usingKcf(JNIEnv *en
         env->SetIntField(oStructInfo, cWidthLoc, width);
         env->SetIntField(oStructInfo, cHeightLoc, height);
         //释放数组
-        env->ReleaseIntArrayElements(input_array, inputArrayNew, 0);
+//        env->ReleaseIntArrayElements(input_array, inputArrayNew, 0);
     } else {
         LOGE("update is finish,status is not ok.");
         env->SetIntField(oStructInfo, cXLoc, 0);
@@ -1118,7 +1132,7 @@ Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_usingKcf(JNIEnv *en
         env->SetIntField(oStructInfo, cWidthLoc, 0);
         env->SetIntField(oStructInfo, cHeightLoc, 0);
         //释放数组
-        env->ReleaseIntArrayElements(input_array, inputArrayNew, 0);
+//        env->ReleaseIntArrayElements(input_array, inputArrayNew, 0);
     }
 
     return oStructInfo;
@@ -1133,6 +1147,8 @@ Point center;
 vector<Point2d> points;
 Mat tmp, dst;
 
+int countFdsst = 0;
+
 bool HOG = true;
 bool FIXEDWINDOW = false;
 bool MULTISCALE = true;
@@ -1144,21 +1160,18 @@ FDSSTTracker trackerForF(HOG, FIXEDWINDOW, MULTISCALE, LAB);
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_initFdsst(JNIEnv *env, jobject thiz,
-                                                                       jintArray input_array,
+                                                                       jobject src_bitmap,
                                                                        jfloat left, jfloat top,
                                                                        jfloat right, jfloat bottom,
                                                                        jint width,
                                                                        jint height) {
     // TODO: implement initFdsst()
     LOGE("tracker initing in JNI...");
-    int *inputArrayNew = env->GetIntArrayElements(input_array, NULL);
-    if (inputArrayNew == NULL) {
-        LOGE("inputArray is null,check input.");
-    }
-    cv::Mat frame(height, width, CV_8UC4, (unsigned char *) inputArrayNew);
-//    Mat frame;
-//    BitmapToMat(env, src_bitmap, frame);//图片转化成mat
-    imwrite("/storage/emulated/0/result/readYuv.jpg", frame);
+
+    Mat frame;
+    BitmapToMat(env, src_bitmap, frame);//图片转化成mat
+    cvtColor(frame, frame, COLOR_BGRA2RGB);
+
     __android_log_print(ANDROID_LOG_ERROR, "mat_jni",
                         "frame.rows: %d, frame.cols: %d, frame.type(): %d",
                         frame.rows, frame.cols, frame.type());
@@ -1173,13 +1186,12 @@ Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_initFdsst(JNIEnv *e
     //跟踪器初始化
     cvtColor(frame, dst, CV_BGR2GRAY);
     trackerForF.init(bboxForF, dst);
-    LOGE("bbox init finished...");
 }
 
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_usingFdsst(JNIEnv *env, jobject thiz,
-                                                                        jintArray input_array,
+                                                                        jobject src_bitmap,
                                                                         jint width, jint height) {
     // TODO: implement usingFdsst()
 
@@ -1192,18 +1204,16 @@ Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_usingFdsst(JNIEnv *
     //新建Jni类对象
     jobject oStructInfo = env->AllocObject(cSructInfo);
 
-    int *inputArrayNew = env->GetIntArrayElements(input_array, NULL);
-    if (inputArrayNew == NULL) {
-        LOGE("inputArray is null,check input.");
-    }
 
-    cv::Mat frame(height, width, CV_8UC4, (unsigned char *) inputArrayNew);
+    Mat frame;
+    BitmapToMat(env, src_bitmap, frame);//图片转化成mat
+    cvtColor(frame, frame, COLOR_BGRA2RGB);
 
     __android_log_print(ANDROID_LOG_ERROR, "mat_jni",
                         "frame.rows: %d, frame.cols: %d, frame.type(): %d",
                         frame.rows, frame.cols, frame.type());
 
-    cvtColor(frame, dst,CV_BGR2GRAY);
+    cvtColor(frame, dst,CV_RGB2GRAY);
     bboxForF = trackerForF.update(dst);
 
     LOGE("update is finish,status is ok.");
@@ -1215,8 +1225,11 @@ Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_usingFdsst(JNIEnv *
     env->SetIntField(oStructInfo, cYLoc, bboxy);
     env->SetIntField(oStructInfo, cWidthLoc, bboxwidth);
     env->SetIntField(oStructInfo, cHeightLoc, bboxheight);
-    //释放数组
-    env->ReleaseIntArrayElements(input_array, inputArrayNew, 0);
+
+    ostringstream oss;
+    oss << "/storage/emulated/0/result/readFdsstRectangle" << countFdsst++ << ".jpg";
+    cout << oss.str() << endl;
+    imwrite(oss.str(), frame);
 
     return oStructInfo;
 }

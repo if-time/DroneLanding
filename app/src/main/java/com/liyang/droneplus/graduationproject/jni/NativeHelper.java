@@ -34,16 +34,18 @@ public class NativeHelper {
     }
 
     /**********************************************KCF*****************************************************/
-    public native void initKcf(int[] inputArray, float left, float top, float right, float bottom, int width, int height);
-
-    public native KCFResultFormJNI usingKcf(int[] inputArray, int width, int height);
-
+//    public native void initKcf(int[] inputArray, float left, float top, float right, float bottom, int width, int height);
+//    public native void initKcf(Object srcMat, float left, float top, float right, float bottom, int width, int height);
+    public native void initKcf(Object srcBitmap, float left, float top, float right, float bottom, int width, int height);
+//    public native KCFResultFormJNI usingKcf(int[] inputArray, int width, int height);
+//    public native KCFResultFormJNI usingKcf(Object srcMat, int width, int height);
+    public native KCFResultFormJNI usingKcf(Object srcBitmap, int width, int height);
     /**********************************************KCF*****************************************************/
 
     /**********************************************FDSST*****************************************************/
-    public native void initFdsst(int[] inputArray, float left, float top, float right, float bottom, int width, int height);
+    public native void initFdsst(Object srcBitmap, float left, float top, float right, float bottom, int width, int height);
 
-    public native FDSSTResultFormJNI usingFdsst(int[] inputArray, int width, int height);
+    public native FDSSTResultFormJNI usingFdsst(Object srcBitmap, int width, int height);
 
     /**********************************************FDSST*****************************************************/
 

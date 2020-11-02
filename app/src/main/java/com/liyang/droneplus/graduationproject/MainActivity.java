@@ -193,11 +193,11 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
      */
     private void trackingInitForFDSST(RectF rectFForFrame, Bitmap bitmapForTracking) {
         if (bitmapForTracking != null) {
-            int[] pixels = new int[bitmapForTracking.getWidth() * bitmapForTracking.getHeight()];
-            bitmapForTracking.getPixels(pixels, 0, bitmapForTracking.getWidth(),
-                    0, 0, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
+//            int[] pixels = new int[bitmapForTracking.getWidth() * bitmapForTracking.getHeight()];
+//            bitmapForTracking.getPixels(pixels, 0, bitmapForTracking.getWidth(),
+//                    0, 0, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
 
-            NativeHelper.getInstance().initFdsst(pixels, rectFForFrame.left, rectFForFrame.top,
+            NativeHelper.getInstance().initFdsst(bitmapForTracking, rectFForFrame.left, rectFForFrame.top,
                     rectFForFrame.right, rectFForFrame.bottom, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
             showToast("init" + rectFForFrame.left + " " + rectFForFrame.top + " " +
                     rectFForFrame.right + " " + rectFForFrame.bottom);

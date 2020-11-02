@@ -5,6 +5,7 @@ import android.util.Log;
 
 import org.opencv.android.Utils;
 import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 /**
  *
@@ -55,6 +56,7 @@ public class ImageUtils {
         Mat mat = new Mat();
         Bitmap bmp32 = bitmap.copy(Bitmap.Config.ARGB_8888, true);
         Utils.bitmapToMat(bmp32, mat);
+        Imgproc.cvtColor(mat, mat, Imgproc.COLOR_BGRA2BGR);
         return mat;
     }
 
