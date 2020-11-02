@@ -43,24 +43,6 @@ public class ApriltagR {
 
     public static native ArrayList<TarmacResult> findTargetInFrame(Object srcBitmap, int nHeight, int width, int height);
 
-    /**
-     * 识别二维码
-     *
-     * @param filePath
-     * @return
-     */
-    public static native String qrDetect(String filePath);
-
-
-    /**
-     * 判断MTA中是否有手机
-     *
-     * @param baseImageFilePath 基准的图片
-     * @param filePath          拍摄的图片
-     * @return
-     */
-    public static native boolean checkPhoneInMTA(String baseImageFilePath, String filePath);
-
 
     public static String resultPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/result";
 
