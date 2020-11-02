@@ -29,7 +29,11 @@ import com.liyang.droneplus.application.DemoApplication;
 import com.liyang.droneplus.graduationproject.detection.ClassifierFromTensorFlow;
 import com.liyang.droneplus.graduationproject.detection.TensorFlowObjectDetectionAPIModel;
 import com.liyang.droneplus.graduationproject.interf.ConfirmLocationForTracking;
-import com.liyang.droneplus.graduationproject.view.AutoFitTextureView;
+import com.liyang.droneplus.graduationproject.jni.NativeHelper;
+import com.liyang.droneplus.graduationproject.tracking.FDSSTResultFormJNI;
+import com.liyang.droneplus.graduationproject.tracking.KCFResultFormJNI;
+import com.liyang.droneplus.graduationproject.utils.dialogs.DialogFragmentHelper;
+import com.liyang.droneplus.graduationproject.utils.dialogs.IDialogResultListener;
 import com.liyang.droneplus.graduationproject.view.TouchPaintView;
 
 import java.io.IOException;
@@ -44,6 +48,10 @@ import dji.sdk.camera.Camera;
 import dji.sdk.camera.VideoFeeder;
 import dji.sdk.codec.DJICodecManager;
 
+/**
+ * @author dongsiyuan
+ * @date 2020年10月27日
+ */
 public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener {
 
     private static final String TAG = MainActivity.class.getName();
@@ -63,6 +71,9 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
     private boolean runDetection = false;
 
+    private enum TrackerType { USE_KCF, USE_FDSST}
+    private static TrackerType trackerType = TrackerType.USE_KCF;
+
     protected VideoFeeder.VideoDataListener mReceivedVideoDataListener = null;
     // Codec for video live view
     protected DJICodecManager mCodecManager = null;
@@ -75,7 +86,8 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
     private ClassifierFromTensorFlow classifierFromTensorFlow;
 
-    protected AutoFitTextureView mVideoSurface = null;
+//    private AutoFitTextureView mVideoSurface = null;
+    private TextureView mVideoSurface = null;
     private Button btnThermal;
     private Button btnThread;
 
@@ -104,7 +116,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
     private void initUI() {
         // init mVideoSurface
-        mVideoSurface = (AutoFitTextureView) findViewById(R.id.video_previewer_surface);
+        mVideoSurface = findViewById(R.id.video_previewer_surface);
         imageViewForFrame = findViewById(R.id.imageView);
 
         if (null != mVideoSurface) {
@@ -136,11 +148,75 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         // 确定点击到了画框区域
         touchView.setConfirmLocationForTracking(new ConfirmLocationForTracking() {
             @Override
-            public void confirmForTracking() {
-                showToast("回调");
+            public void confirmForTracking(final RectF rectFForFrame) {
+                // showToast("回调");
+                // 截取此区域的bitmap传入fdsst中
+                final Bitmap bitmapForTracking = mVideoSurface.getBitmap();
+
+//                DialogUtils.showListDialog(MainActivity.this, getSupportFragmentManager(),"选择哪种跟踪算法？",new String[]{"KCF", "FDSST"});
+
+                String titleList = "选择哪种跟踪算法？";
+                final String [] languanges = new String[]{"KCF", "FDSST"};
+                DialogFragmentHelper.showListDialog(MainActivity.this, getSupportFragmentManager(), titleList, languanges, new IDialogResultListener<Integer>() {
+                    @Override
+                    public void onDataResult(Integer result) {
+                        showToast(languanges[result]);
+                        switch (result) {
+                            case 0:
+                                trackingInitForKCF(rectFForFrame, bitmapForTracking);
+                                trackerType = TrackerType.USE_KCF;
+                                break;
+                            case 1:
+                                trackingInitForFDSST(rectFForFrame, bitmapForTracking);
+                                trackerType = TrackerType.USE_FDSST;
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }, true);
+
             }
         });
+    }
 
+    /**
+     * FDSST初始化
+     * @param rectFForFrame
+     * @param bitmapForTracking
+     */
+    private void trackingInitForFDSST(RectF rectFForFrame, Bitmap bitmapForTracking) {
+        if (bitmapForTracking != null) {
+            int[] pixels = new int[bitmapForTracking.getWidth() * bitmapForTracking.getHeight()];
+            bitmapForTracking.getPixels(pixels, 0, bitmapForTracking.getWidth(),
+                    0, 0, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
+
+            NativeHelper.getInstance().initFdsst(pixels, rectFForFrame.left, rectFForFrame.top,
+                    rectFForFrame.right, rectFForFrame.bottom, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
+            showToast("init" + rectFForFrame.left + " " + rectFForFrame.top + " " +
+                    rectFForFrame.right + " " + rectFForFrame.bottom);
+        } else {
+            showToast("bitmapForFDSST == null");
+        }
+    }
+
+    /**
+     * KCF初始化
+     * @param rectFForFrame
+     * @param bitmapForTracking
+     */
+    private void trackingInitForKCF(RectF rectFForFrame, Bitmap bitmapForTracking) {
+        if (bitmapForTracking != null) {
+            int[] pixels = new int[bitmapForTracking.getWidth() * bitmapForTracking.getHeight()];
+            bitmapForTracking.getPixels(pixels, 0, bitmapForTracking.getWidth(),
+                    0, 0, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
+            NativeHelper.getInstance().initKcf(pixels, rectFForFrame.left, rectFForFrame.top,
+                    rectFForFrame.right, rectFForFrame.bottom, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
+            showToast("init" + rectFForFrame.left + " " + rectFForFrame.top + " " +
+                    rectFForFrame.right + " " + rectFForFrame.bottom);
+        } else {
+            showToast("bitmapForKCF == null");
+        }
     }
 
 
@@ -299,16 +375,18 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
      */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
     private void stopBackgroundThread() {
-        backgroundThread.quitSafely();
-        try {
-            backgroundThread.join();
-            backgroundThread = null;
-            backgroundHandler = null;
-            synchronized (lock) {
-                runDetection = false;
+        if (backgroundThread != null) {
+            backgroundThread.quitSafely();
+            try {
+                backgroundThread.join();
+                backgroundThread = null;
+                backgroundHandler = null;
+                synchronized (lock) {
+                    runDetection = false;
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
         }
     }
 
@@ -333,6 +411,24 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private void classifyFrame() {
         //detectionForTensorFlow();
 
+        switch (trackerType) {
+            case USE_KCF:
+                trackingForKCF();
+                showToast("trackingForKCF");
+                break;
+            case USE_FDSST:
+                trackingForFDSST();
+                showToast("trackingForFDSST");
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * 通过FDSST进行跟踪
+     */
+    private void trackingForFDSST() {
         canvasWidth = mVideoSurface.getWidth();
         canvasHeight = mVideoSurface.getHeight();
         imageViewForFrame.getLayoutParams().width = mVideoSurface.getWidth();
@@ -341,13 +437,83 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         final Bitmap croppedBitmap = Bitmap.createBitmap((int) canvasWidth, (int) canvasHeight, Bitmap.Config.ARGB_8888);
         final Canvas canvas = new Canvas(croppedBitmap);
 
-        RectF rectF = touchView.getFrameLocation();
-        // 截取此区域的bitmap传入fdsst中
+        Bitmap bitmap = mVideoSurface.getBitmap();
 
-        // 获取到识别出的位置并画框
+        if (bitmap == null) {
+            showToast("bitmap == null");
+            return;
+        } else {
+            // 获取到识别出的位置并画框
+            long start = System.currentTimeMillis();
+            int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
+            bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+            FDSSTResultFormJNI result = NativeHelper.getInstance().usingFdsst(pixels, bitmap.getWidth(), bitmap.getHeight());
+            bitmap.recycle();
+            showToast("ms: " + (System.currentTimeMillis() - start));
+            Paint paint = new Paint();
+            paint.setColor(Color.RED);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(5.0f);
+            paint.setAntiAlias(true);
 
+            //            showToast(result.x + " " + result.y + " " + (result.width + result.x) + " " + (result.height + result.y));
+            canvas.drawRect(result.x, result.y, result.width + result.x, result.height + result.y, paint);
+            imageViewForFrame.post(new Runnable() {
+                @Override
+                public void run() {
+                    imageViewForFrame.setImageBitmap(croppedBitmap);
+                }
+            });
+        }
     }
 
+    /**
+     * 通过KCF进行跟踪
+     */
+    private void trackingForKCF() {
+        canvasWidth = mVideoSurface.getWidth();
+        canvasHeight = mVideoSurface.getHeight();
+        imageViewForFrame.getLayoutParams().width = mVideoSurface.getWidth();
+        imageViewForFrame.getLayoutParams().height = mVideoSurface.getHeight();
+
+        final Bitmap croppedBitmap = Bitmap.createBitmap((int) canvasWidth, (int) canvasHeight, Bitmap.Config.ARGB_8888);
+        final Canvas canvas = new Canvas(croppedBitmap);
+
+        Bitmap bitmap = mVideoSurface.getBitmap();
+
+        if (bitmap == null) {
+            showToast("bitmap == null");
+            return;
+        } else {
+            // 获取到识别出的位置并画框
+//            showToast("usingKcf(bitmap)" + bitmap.getConfig());
+            long start = System.currentTimeMillis();
+            int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
+            bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+            KCFResultFormJNI result = NativeHelper.getInstance().usingKcf(pixels, bitmap.getWidth(), bitmap.getHeight());
+            bitmap.recycle();
+            showToast("ms: " + (System.currentTimeMillis() - start));
+            Paint paint = new Paint();
+            paint.setColor(Color.RED);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(5.0f);
+            paint.setAntiAlias(true);
+
+//            showToast(result.x + " " + result.y + " " + (result.width + result.x) + " " + (result.height + result.y));
+            canvas.drawRect(result.x, result.y, result.width + result.x, result.height + result.y, paint);
+            imageViewForFrame.post(new Runnable() {
+                @Override
+                public void run() {
+                    imageViewForFrame.setImageBitmap(croppedBitmap);
+                }
+            });
+        }
+    }
+
+
+    /**
+     * detectionForTensorFlow
+     */
     private void detectionForTensorFlow() {
         if (classifierFromTensorFlow == null) {
             showToast("Uninitialized Classifier or invalid context.");
@@ -396,8 +562,9 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     } else if (result.getTitle().equals("smoke")) {
                         paint.setColor(Color.YELLOW);
                         paint1.setColor(Color.YELLOW);
-                    } else
+                    } else {
                         paint.setColor(Color.WHITE);
+                    }
 
                     paint.setStyle(Paint.Style.STROKE);
                     paint.setStrokeWidth(5.0f);
@@ -431,6 +598,9 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 break;
             case R.id.btnThread:
                 startBackgroundThread();
+                touchView.clearView();
+                break;
+            default:
                 break;
         }
     }

@@ -35,7 +35,14 @@
 
 #include "Eigen/Dense"
 
-#include "tracker.h"
+#include "trackerForTarmac.h"
+
+#include <opencv2/opencv.hpp>
+#include <opencv2/tracking/tracker.hpp>
+#include <fstream>
+#include <time.h>
+#include "fdssttracker.hpp"
+#include <cstring>
 
 extern "C"
 {
@@ -582,8 +589,10 @@ Java_com_liyang_droneplus_apriltags_ApriltagR_angle(JNIEnv *env, jclass clazz,
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_liyang_droneplus_YuvUtils_allocateMemo(JNIEnv *env, jclass clazz, jint src_yuv_length,
-                                                jint src_argb_length, jint dst_length) {
+Java_com_liyang_droneplus_graduationproject_utils_YuvUtils_allocateMemo(JNIEnv *env, jclass clazz,
+                                                                        jint src_yuv_length,
+                                                                        jint src_argb_length,
+                                                                        jint dst_length) {
     len_src = src_yuv_length;
     len_src_rgb = src_argb_length;
     len_scale = dst_length;
@@ -604,8 +613,10 @@ Java_com_liyang_droneplus_YuvUtils_allocateMemo(JNIEnv *env, jclass clazz, jint 
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_liyang_droneplus_YuvUtils_rgbToYuvBylibyuv(JNIEnv *env, jclass clazz, jobject src_bitmap,
-                                                    jbyteArray dst_yuv) {
+Java_com_liyang_droneplus_graduationproject_utils_YuvUtils_rgbToYuvBylibyuv(JNIEnv *env,
+                                                                            jclass clazz,
+                                                                            jobject src_bitmap,
+                                                                            jbyteArray dst_yuv) {
     AndroidBitmapInfo infocolor;
     int ret;
 
@@ -662,7 +673,7 @@ Java_com_liyang_droneplus_YuvUtils_rgbToYuvBylibyuv(JNIEnv *env, jclass clazz, j
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_liyang_droneplus_YuvUtils_releaseMemo(JNIEnv *env, jclass clazz) {
+Java_com_liyang_droneplus_graduationproject_utils_YuvUtils_releaseMemo(JNIEnv *env, jclass clazz) {
     // TODO: implement releaseMemo()
     LOGD("########## Release START#############\n");
     free(input_src_data);
@@ -685,7 +696,6 @@ Java_com_liyang_droneplus_YuvUtils_releaseMemo(JNIEnv *env, jclass clazz) {
 
     LOGD("########## Release OVER#############\n");
 }
-
 
 void BitmapToMat2(JNIEnv *env, jobject &bitmap, Mat &mat, jboolean needUnPremultiplyAlpha) {
     AndroidBitmapInfo info;
@@ -727,10 +737,6 @@ void BitmapToMat2(JNIEnv *env, jobject &bitmap, Mat &mat, jboolean needUnPremult
         env->ThrowNew(je, "Unknown exception in JNI code {nBitmapToMat}");
         return;
     }
-}
-
-void BitmapToMat(JNIEnv *env, jobject &bitmap, Mat &mat) {
-    BitmapToMat2(env, bitmap, mat, false);
 }
 
 void MatToBitmap2
@@ -785,6 +791,10 @@ void MatToBitmap2
         env->ThrowNew(je, "Unknown exception in JNI code {nMatToBitmap}");
         return;
     }
+}
+
+void BitmapToMat(JNIEnv *env, jobject &bitmap, Mat &mat) {
+    BitmapToMat2(env, bitmap, mat, false);
 }
 
 void MatToBitmap(JNIEnv *env, Mat &mat, jobject &bitmap) {
@@ -1011,548 +1021,238 @@ Java_com_liyang_droneplus_apriltags_ApriltagR_findTargetInFrame(JNIEnv *env, jcl
     return al;
 
 }
-/*
+
+
+/**********************************************KCF*****************************************************/
+//初始化跟踪器
+Ptr<Tracker> tracker;
+Rect2d bbox;
+
+int countKcf = 0;
 
 extern "C"
-JNIEXPORT jstring JNICALL
-Java_com_liyang_droneplus_apriltags_ApriltagR_qrDetect(JNIEnv *env, jclass jc,
-                                                       jstring filePath) {
-    // TODO: implement qrDetect()
-    const char *file_path_str = env->GetStringUTFChars(filePath, 0);
-    string path = file_path_str;
-    Mat src = imread(path);
-
-    Mat gray, qrcode_roi;
-    cvtColor(src, gray, COLOR_BGR2GRAY);
-
-
-    QRCodeDetector qrcode_detector;
-
-    vector<Point> pts;
-
-    string detect_info;
-
-    bool det_result = qrcode_detector.detect(gray, pts);
-
-
-    if (det_result) {
-
-        detect_info = qrcode_detector.decode(gray, pts, qrcode_roi);
-
-        return env->NewStringUTF(detect_info.c_str());
-
-    } else {
-
-        detect_info = "";
-
-        return env->NewStringUTF(detect_info.c_str());
+JNIEXPORT void JNICALL
+Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_initKcf(JNIEnv *env, jobject thiz,
+                                                                     jintArray input_array,
+                                                                     jfloat left, jfloat top,
+                                                                     jfloat right, jfloat bottom,
+                                                                     jint width,
+                                                                     jint height) {
+    // TODO: implement initKcf()
+    LOGE("tracker initing in JNI...");
+    int *inputArrayNew = env->GetIntArrayElements(input_array, NULL);
+    if (inputArrayNew == NULL) {
+        LOGE("inputArray is null,check input.");
     }
-
+    cv::Mat frame(height, width, CV_8UC3, (unsigned char *) inputArrayNew);
+//    Mat frame;
+//    BitmapToMat(env, src_bitmap, frame);//图片转化成mat
+    rectangle(frame, bbox, Scalar(255, 0, 0), 2, 1);
+    imwrite("/storage/emulated/0/result/readYuvkcf.jpg", frame);
+    __android_log_print(ANDROID_LOG_ERROR, "mat_jni",
+                        "frame.rows: %d, frame.cols: %d, frame.type(): %d",
+                        frame.rows, frame.cols, frame.type());
+    tracker = TrackerKCF::create();
+    LOGE("tracker init finished in JNI...");
+    bbox.x = left;
+    bbox.y = top;
+    bbox.width = right - left;
+    bbox.height = bottom - top;
+    //跟踪器初始化
+    tracker->init(frame, bbox);
+    LOGE("bbox init finished...");
 }
 
 extern "C"
-JNIEXPORT jboolean JNICALL
-Java_com_liyang_droneplus_apriltags_ApriltagR_checkPhoneInMTA(JNIEnv *env, jclass clazz,
-                                                              jstring baseImgPath,
-                                                              jstring filePath) {
-    // TODO: implement checkPhoneInMTA()
+JNIEXPORT jobject JNICALL
+Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_usingKcf(JNIEnv *env, jobject thiz,
+                                                                      jintArray input_array,
+                                                                      jint width, jint height) {
+    // TODO: implement usingKcf()
 
-    jboolean tRet
-            =
+    jclass cSructInfo = env->FindClass(
+            "com/liyang/droneplus/graduationproject/tracking/KCFResultFormJNI");
+    jfieldID cXLoc = env->GetFieldID(cSructInfo, "x", "I");
+    jfieldID cYLoc = env->GetFieldID(cSructInfo, "y", "I");
+    jfieldID cWidthLoc = env->GetFieldID(cSructInfo, "width", "I");
+    jfieldID cHeightLoc = env->GetFieldID(cSructInfo, "height", "I");
+    //新建Jni类对象
+    jobject oStructInfo = env->AllocObject(cSructInfo);
 
-            false;
-
-
-    const
-
-    char
-
-            *
-            file_path_str
-            =
-            env
-                    ->
-                            GetStringUTFChars
-                            (
-                                    filePath,
-
-                                    0
-                            );
-
-
-    string
-            path
-            =
-            file_path_str;
-
-
-    Mat
-            src
-            =
-            imread
-                    (
-                            path
-                    );
-
-
-    const
-
-    char
-
-            *
-            base_img_path_str
-            =
-            env
-                    ->
-                            GetStringUTFChars
-                            (
-                                    baseImgPath,
-
-                                    0
-                            );
-
-
-    string
-            basePath
-            =
-            base_img_path_str;
-
-
-    Mat
-            baseImg
-            =
-            imread
-                    (
-                            basePath
-                    );
-
-
-    int
-            result
-            =
-            checkPhoneInBox
-                    (
-                            baseImg,
-                            src,
-                            40,
-                            0.1
-                    );
-
-
-    LOGI
-    (
-            "checkPhoneInBox result = %d",
-            result
-    );
-
-
-    if
-
-            (
-            result
-            ==
-
-            0
-            ) {
-
-        tRet
-                =
-
-                true;
-
-
+    int *inputArrayNew = env->GetIntArrayElements(input_array, NULL);
+    if (inputArrayNew == NULL) {
+        LOGE("inputArray is null,check input.");
     }
 
+//    Mat frame;
+//    BitmapToMat(env, src_bitmap, frame);//图片转化成mat
+    cv::Mat frame(height, width, CV_8UC3, (unsigned char *) inputArrayNew);
 
-    return
-            tRet;
+    __android_log_print(ANDROID_LOG_ERROR, "mat_jni",
+                        "frame.rows: %d, frame.cols: %d, frame.type(): %d",
+                        frame.rows, frame.cols, frame.type());
+    bool ok = tracker->update(frame, bbox);
+
+    if (ok) {
+        rectangle(frame, bbox, Scalar(255, 0, 0), 2, 1);
+        ostringstream oss;
+        oss << "/storage/emulated/0/result/readYuvrectangle" << countKcf++ << ".jpg";
+        cout << oss.str() << endl;
+
+        imwrite(oss.str(), frame);
+        LOGE("update is finish,status is ok.");
+        int x = bbox.x;
+        int y = bbox.y;
+        int width = bbox.width;
+        int height = bbox.height;
+        env->SetIntField(oStructInfo, cXLoc, x);
+        env->SetIntField(oStructInfo, cYLoc, y);
+        env->SetIntField(oStructInfo, cWidthLoc, width);
+        env->SetIntField(oStructInfo, cHeightLoc, height);
+        //释放数组
+        env->ReleaseIntArrayElements(input_array, inputArrayNew, 0);
+    } else {
+        LOGE("update is finish,status is not ok.");
+        env->SetIntField(oStructInfo, cXLoc, 0);
+        env->SetIntField(oStructInfo, cYLoc, 0);
+        env->SetIntField(oStructInfo, cWidthLoc, 0);
+        env->SetIntField(oStructInfo, cHeightLoc, 0);
+        //释放数组
+        env->ReleaseIntArrayElements(input_array, inputArrayNew, 0);
+    }
+
+    return oStructInfo;
+}
+/**********************************************KCF*****************************************************/
+
+/**********************************************FDSST*****************************************************/
+//初始化跟踪器
+Rect2d bboxForF;
+Point center;
+//动态数组存储坐标点
+vector<Point2d> points;
+Mat tmp, dst;
+
+bool HOG = true;
+bool FIXEDWINDOW = false;
+bool MULTISCALE = true;
+bool SILENT = true;
+bool LAB = false;
+// Create DSSTTracker tracker object
+FDSSTTracker trackerForF(HOG, FIXEDWINDOW, MULTISCALE, LAB);
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_initFdsst(JNIEnv *env, jobject thiz,
+                                                                       jintArray input_array,
+                                                                       jfloat left, jfloat top,
+                                                                       jfloat right, jfloat bottom,
+                                                                       jint width,
+                                                                       jint height) {
+    // TODO: implement initFdsst()
+    LOGE("tracker initing in JNI...");
+    int *inputArrayNew = env->GetIntArrayElements(input_array, NULL);
+    if (inputArrayNew == NULL) {
+        LOGE("inputArray is null,check input.");
+    }
+    cv::Mat frame(height, width, CV_8UC4, (unsigned char *) inputArrayNew);
+//    Mat frame;
+//    BitmapToMat(env, src_bitmap, frame);//图片转化成mat
+    imwrite("/storage/emulated/0/result/readYuv.jpg", frame);
+    __android_log_print(ANDROID_LOG_ERROR, "mat_jni",
+                        "frame.rows: %d, frame.cols: %d, frame.type(): %d",
+                        frame.rows, frame.cols, frame.type());
+    tracker = TrackerKCF::create();
+    LOGE("tracker init finished in JNI...");
+    bboxForF.x = left;
+    bboxForF.y = top;
+    bboxForF.width = right - left;
+    bboxForF.height = bottom - top;
+    rectangle(frame, bboxForF, Scalar(255, 0, 0), 2, 1);
+    imwrite("/storage/emulated/0/result/readYuvfdsst.jpg", frame);
+    //跟踪器初始化
+    cvtColor(frame, dst, CV_BGR2GRAY);
+    trackerForF.init(bboxForF, dst);
+    LOGE("bbox init finished...");
 }
 
-int
-checkPhoneInBox
-        (
-                cv
-                ::
-                Mat
-                baseImg,
-                cv
-                ::
-                Mat
-                snapImg,
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_liyang_droneplus_graduationproject_jni_NativeHelper_usingFdsst(JNIEnv *env, jobject thiz,
+                                                                        jintArray input_array,
+                                                                        jint width, jint height) {
+    // TODO: implement usingFdsst()
 
-                int
-                diffThresh,
+    jclass cSructInfo = env->FindClass(
+            "com/liyang/droneplus/graduationproject/tracking/FDSSTResultFormJNI");
+    jfieldID cXLoc = env->GetFieldID(cSructInfo, "x", "I");
+    jfieldID cYLoc = env->GetFieldID(cSructInfo, "y", "I");
+    jfieldID cWidthLoc = env->GetFieldID(cSructInfo, "width", "I");
+    jfieldID cHeightLoc = env->GetFieldID(cSructInfo, "height", "I");
+    //新建Jni类对象
+    jobject oStructInfo = env->AllocObject(cSructInfo);
 
-                double
-                threshRatio
-        ) {
-
-
-    cv
-    ::
-    Mat
-            baseMaxImg
-    ,
-            snapMaxImg
-    ,
-            baseGausImg
-    ,
-            snapGausImg;
-
-
-    if
-
-            (
-            baseImg
-                    .
-                            empty
-                            () ||
-            snapImg
-                    .
-                            empty
-                            ()) {
-
-
-        return
-
-                -
-                        1;
-
-
+    int *inputArrayNew = env->GetIntArrayElements(input_array, NULL);
+    if (inputArrayNew == NULL) {
+        LOGE("inputArray is null,check input.");
     }
 
+    cv::Mat frame(height, width, CV_8UC4, (unsigned char *) inputArrayNew);
 
-    try {
+    __android_log_print(ANDROID_LOG_ERROR, "mat_jni",
+                        "frame.rows: %d, frame.cols: %d, frame.type(): %d",
+                        frame.rows, frame.cols, frame.type());
 
-        maxFilter
-                (
-                        baseImg,
-                        baseMaxImg
-                );
+    cvtColor(frame, dst,CV_BGR2GRAY);
+    bboxForF = trackerForF.update(dst);
 
-        maxFilter
-                (
-                        snapImg,
-                        snapMaxImg
-                );
+    LOGE("update is finish,status is ok.");
+    int bboxx = bboxForF.x;
+    int bboxy = bboxForF.y;
+    int bboxwidth = bboxForF.width;
+    int bboxheight = bboxForF.height;
+    env->SetIntField(oStructInfo, cXLoc, bboxx);
+    env->SetIntField(oStructInfo, cYLoc, bboxy);
+    env->SetIntField(oStructInfo, cWidthLoc, bboxwidth);
+    env->SetIntField(oStructInfo, cHeightLoc, bboxheight);
+    //释放数组
+    env->ReleaseIntArrayElements(input_array, inputArrayNew, 0);
 
+    return oStructInfo;
+}
+/**********************************************FDSST*****************************************************/
 
+/**********************************************TEST*****************************************************/
+extern "C"
+JNIEXPORT jintArray JNICALL
+Java_com_liyang_droneplus_graduationproject_test_PictureConversionTestActivity_gray(JNIEnv *env,
+                                                                                    jobject thiz,
+                                                                                    jintArray pix_,
+                                                                                    jint w,
+                                                                                    jint h) {
+    // TODO: implement gray()
+    jint *pix = env->GetIntArrayElements(pix_, NULL);
+    if (pix == NULL) {
+        return 0;
     }
-
-    catch
-
-            (...) {
-
-
-        return
-
-                -
-                        1;
-
-
+#if 1
+    //将c++图片转成Opencv图片
+    Mat imgData(h, w, CV_8UC4, (unsigned char *) pix);
+    uchar *ptr = imgData.ptr(0);
+    for (int i = 0; i < w * h; i++) {
+        //计算公式：Y(亮度) = 0.299*R + 0.587*G + 0.114*B
+        //对于一个int四字节，其彩色值存储方式为：BGRA
+        int grayScale = (int) (ptr[4 * i + 2] * 0.299 + ptr[4 * i + 1] * 0.587 +
+                               ptr[4 * i + 0] * 0.114);
+        ptr[4 * i + 1] = grayScale;
+        ptr[4 * i + 2] = grayScale;
+        ptr[4 * i + 0] = grayScale;
     }
-
-
-    cv
-    ::
-    GaussianBlur
-            (
-                    baseMaxImg,
-                    baseGausImg,
-                    cv
-                    ::
-                    Size
-                            (
-                                    5,
-
-                                    5
-                            ),
-                    0
-            );
-
-    cv
-    ::
-    GaussianBlur
-            (
-                    snapMaxImg,
-                    snapGausImg,
-                    cv
-                    ::
-                    Size
-                            (
-                                    5,
-
-                                    5
-                            ),
-                    0
-            );
-
-
-    cv
-    ::
-    Mat
-            diff
-    ,
-            diffBin;
-
-    cv
-    ::
-    Mat
-            noMax;
-
-    cv
-    ::
-    absdiff
-            (
-                    baseGausImg,
-                    snapGausImg,
-                    diff
-            );
-
-    cv
-    ::
-    threshold
-            (
-                    diff,
-                    diffBin,
-                    diffThresh,
-
-                    255,
-                    cv
-                    ::
-                    THRESH_BINARY
-            );
-
-
-    float
-            ratio
-            =
-
-            (
-                    float
-            )
-                    cv
-                    ::
-                    countNonZero
-                            (
-                                    diffBin
-                            )
-
-            /
-
-            (
-                    long
-            )
-                    diffBin
-                            .
-                                    total
-                                    ();
-
-
-    LOGI
-    (
-            "ratio = %f,%d,%ld",
-            ratio,
-            cv
-            ::
-            countNonZero
-                    (
-                            diffBin
-                    ), (
-                    long
-            )
-                    diffBin
-                            .
-                                    total
-                                    ());
-
-
-    if
-
-            (
-            ratio
-            >
-            threshRatio
-            ) {
-
-
-        return
-
-                0;
-
-
-    } else {
-
-
-        return
-
-                1;
-
-
-    }
+#endif
+    int size = w * h;
+    jintArray result = env->NewIntArray(size);
+    env->SetIntArrayRegion(result, 0, size, pix);
+    env->ReleaseIntArrayElements(pix_, pix, 0);
+    return result;
 
 }
-
-
-int
-maxFilter
-        (
-                cv
-                ::
-                Mat
-                baseImg,
-                cv
-                ::
-                Mat
-
-                &
-                maxImg
-        ) {
-
-
-    if
-
-            (
-            baseImg
-                    .
-                            channels
-                            ()
-
-            <
-            3
-            ) {
-
-        maxImg
-                =
-                baseImg
-                        .
-                                clone
-                                ();
-
-
-    } else {
-
-        maxImg
-                .
-                        create
-                        (
-                                baseImg
-                                        .
-                                                size
-                                                (),
-                                CV_8UC1
-                        );
-
-
-        for
-
-                (
-                int
-                        r
-                        =
-                        0;
-                r
-                <
-                baseImg
-                        .
-                                rows;
-                r
-                        ++) {
-
-
-            for
-
-                    (
-                    int
-                            c
-                            =
-
-                            0;
-                    c
-                    <
-                    baseImg
-                            .
-                                    cols;
-                    c
-                            ++) {
-
-                uchar maxTmp
-                        =
-                        0;
-
-                cv
-                ::
-                Vec3b
-                        s
-                        =
-                        baseImg
-                                .
-                                        at
-                                        <
-                                                cv
-                                                ::
-                                                Vec3b
-                                        >(
-                                        r,
-                                        c
-                                );
-
-                maxTmp
-                        =
-
-                        (
-                                std
-                                ::
-                                max
-                        )(
-                                s
-                                [
-                                        0
-                                ],
-                                s
-                                [
-                                        1
-                                ]);
-
-                maxTmp
-                        =
-
-                        (
-                                std
-                                ::
-                                max
-                        )(
-                                maxTmp,
-                                s
-                                [
-                                        2
-                                ]);
-
-
-                maxImg
-                        .
-                                at
-                                <uchar>
-                                (
-                                        r,
-                                        c
-                                )
-
-                        =
-                        maxTmp;
-
-
-            }
-
-
-        }
-
-
-    }
-
-
-    return
-
-            0;
-
-}*/

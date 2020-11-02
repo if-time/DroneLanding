@@ -14,7 +14,6 @@ limitations under the License.
 ==============================================================================*/
 package com.liyang.droneplus.util;
 
-import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 
@@ -24,8 +23,7 @@ import android.os.Environment;
 import android.util.Log;
 
 import com.liyang.droneplus.R;
-import com.liyang.droneplus.YuvUtils;
-import com.mapbox.mapboxsdk.storage.Resource;
+import com.liyang.droneplus.graduationproject.utils.YuvUtils;
 
 import java.io.BufferedOutputStream;
 import java.io.File;

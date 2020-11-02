@@ -5,7 +5,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.liyang.droneplus.graduationproject.view.AutoFitTextureView
+<!--    <com.liyang.droneplus.graduationproject.view.AutoFitTextureView-->
+<!--        android:id="@+id/video_previewer_surface"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="match_parent" />-->
+
+    <TextureView
         android:id="@+id/video_previewer_surface"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
@@ -22,6 +27,7 @@
         android:scaleType="fitXY" />
 
     <LinearLayout
+        android:id="@+id/llbtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -46,6 +52,7 @@
     </LinearLayout>
 
     <RelativeLayout
+        android:layout_toRightOf="@+id/llbtn"
         android:id="@+id/fpv_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent">

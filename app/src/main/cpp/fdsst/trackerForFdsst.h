@@ -17,16 +17,16 @@
 
 
 #pragma once
-#ifndef TRACKER_H
-#define TRACKER_H
+#ifndef TRACKERFORFDSST_H
+#define TRACKERFORFDSST_H
 #include <opencv2/opencv.hpp>
 #include <string>
 
-class Tracker
+class TrackerForFdsst
 {
 public:
-    Tracker()  {}
-   virtual  ~Tracker() { }
+    TrackerForFdsst()  {}
+   virtual  ~TrackerForFdsst() { }
 
     virtual void init(const cv::Rect &roi, cv::Mat image) = 0;
     virtual cv::Rect  update( cv::Mat image)=0;

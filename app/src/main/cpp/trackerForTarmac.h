@@ -2,8 +2,8 @@
 // Created by Ifand on 2019/11/25.
 //
 
-#ifndef TRACKER_H
-#define TRACKER_H
+#ifndef TRACKERFORTARMAC_H
+#define TRACKERFORTARMAC_H
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/tracking/tracker.hpp>

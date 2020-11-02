@@ -2,7 +2,7 @@
 // Created by Ifand on 2019/11/29.
 //
 
-#include "tracker.h"
+#include "trackerForTarmac.h"
 
 struct TrackerConfig tracker_config = {
         .minTargetArea=64,

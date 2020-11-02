@@ -83,9 +83,9 @@ the use of this software, even if advised of the possibility of such damage.
 #pragma once
 #ifndef FDSSTTRACKER_HPP
 #define FDSSTTRACKER_HPP
-#include "tracker.h"
+#include "trackerForFdsst.h"
 
-class FDSSTTracker : public Tracker
+class FDSSTTracker : public TrackerForFdsst
 {
 public:
 

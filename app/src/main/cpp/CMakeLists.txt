@@ -22,7 +22,7 @@ add_library( # Sets the name of the library.
         # Provides a relative path to your source file(s).
         native-lib.cpp
 
-        tracker.cpp
+        trackerForTarmac.cpp
 
         apriltag/apriltag.c
         apriltag/apriltag_pose.c
@@ -60,7 +60,7 @@ add_library( # Sets the name of the library.
         fdsst/recttools.hpp
         fdsst/sse.hpp
         fdsst/SSE2NEON.h
-        fdsst/tracker.h
+        fdsst/trackerForFdsst.h
 
         trackingTargetForFDSST.cpp
         )
