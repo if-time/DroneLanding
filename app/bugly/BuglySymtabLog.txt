@@ -58,3 +58,15 @@ symbolFile=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapr
 file=E:\androidCode\DJIDemo\droneplus_landing\app\build\intermediates\cmake\debug\obj\armeabi-v7a\libapriltag.so
 uuid=396cb37b9ce1ba2a289967eba4685706
 
+symbolFile=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_armeabi-v7a-34667.zip
+file=E:\androidCode\DJIDemo\droneplus_landing\app\build\intermediates\cmake\debug\obj\armeabi-v7a\libapriltag.so
+uuid=3466765f32e088cf49137179e25df17a
+
+symbolFile=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_armeabi-v7a-acae9.zip
+file=E:\androidCode\DJIDemo\droneplus_landing\app\build\intermediates\cmake\debug\obj\armeabi-v7a\libapriltag.so
+uuid=acae9978a85c8fe67876debcdcf38487
+
+symbolFile=E:\androidCode\DJIDemo\droneplus_landing\app\bugly\buglySymbol_libapriltag_armeabi-v7a-b8615.zip
+file=E:\androidCode\DJIDemo\droneplus_landing\app\build\intermediates\cmake\debug\obj\armeabi-v7a\libapriltag.so
+uuid=b86159c20c1ede2798aeea8386bc446c
+

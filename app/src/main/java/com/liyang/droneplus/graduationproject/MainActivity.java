@@ -10,6 +10,7 @@ import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.RequiresApi;
@@ -32,11 +33,16 @@ import com.liyang.droneplus.graduationproject.interf.ConfirmLocationForTracking;
 import com.liyang.droneplus.graduationproject.jni.NativeHelper;
 import com.liyang.droneplus.graduationproject.tracking.FDSSTResultFormJNI;
 import com.liyang.droneplus.graduationproject.tracking.KCFResultFormJNI;
+import com.liyang.droneplus.graduationproject.utils.ImageUtils;
 import com.liyang.droneplus.graduationproject.utils.dialogs.DialogFragmentHelper;
 import com.liyang.droneplus.graduationproject.utils.dialogs.IDialogResultListener;
 import com.liyang.droneplus.graduationproject.view.TouchPaintView;
+import com.liyang.droneplus.util.WriteFileUtil;
 
+import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 import dji.common.camera.SettingsDefinitions;
@@ -207,11 +213,16 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
      */
     private void trackingInitForKCF(RectF rectFForFrame, Bitmap bitmapForTracking) {
         if (bitmapForTracking != null) {
-            int[] pixels = new int[bitmapForTracking.getWidth() * bitmapForTracking.getHeight()];
-            bitmapForTracking.getPixels(pixels, 0, bitmapForTracking.getWidth(),
-                    0, 0, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
-            NativeHelper.getInstance().initKcf(pixels, rectFForFrame.left, rectFForFrame.top,
+//            int[] pixels = new int[bitmapForTracking.getWidth() * bitmapForTracking.getHeight()];
+//            bitmapForTracking.getPixels(pixels, 0, bitmapForTracking.getWidth(),
+//                    0, 0, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
+//            NativeHelper.getInstance().initKcf(pixels, rectFForFrame.left, rectFForFrame.top,
+//                    rectFForFrame.right, rectFForFrame.bottom, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
+
+
+            NativeHelper.getInstance().initKcf(bitmapForTracking, rectFForFrame.left, rectFForFrame.top,
                     rectFForFrame.right, rectFForFrame.bottom, bitmapForTracking.getWidth(), bitmapForTracking.getHeight());
+
             showToast("init" + rectFForFrame.left + " " + rectFForFrame.top + " " +
                     rectFForFrame.right + " " + rectFForFrame.bottom);
         } else {
@@ -414,11 +425,11 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         switch (trackerType) {
             case USE_KCF:
                 trackingForKCF();
-                showToast("trackingForKCF");
+//                showToast("trackingForKCF");
                 break;
             case USE_FDSST:
                 trackingForFDSST();
-                showToast("trackingForFDSST");
+//                showToast("trackingForFDSST");
                 break;
             default:
                 break;
@@ -488,9 +499,10 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             // 获取到识别出的位置并画框
 //            showToast("usingKcf(bitmap)" + bitmap.getConfig());
             long start = System.currentTimeMillis();
-            int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
-            bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
-            KCFResultFormJNI result = NativeHelper.getInstance().usingKcf(pixels, bitmap.getWidth(), bitmap.getHeight());
+//            int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
+//            bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+//            KCFResultFormJNI result = NativeHelper.getInstance().usingKcf(pixels, bitmap.getWidth(), bitmap.getHeight());
+            KCFResultFormJNI result = NativeHelper.getInstance().usingKcf(bitmap, bitmap.getWidth(), bitmap.getHeight());
             bitmap.recycle();
             showToast("ms: " + (System.currentTimeMillis() - start));
             Paint paint = new Paint();
@@ -501,6 +513,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
 //            showToast(result.x + " " + result.y + " " + (result.width + result.x) + " " + (result.height + result.y));
             canvas.drawRect(result.x, result.y, result.width + result.x, result.height + result.y, paint);
+            writeAprilTagsStatus(result.x, result.y, result.width + result.x, result.height + result.y);
             imageViewForFrame.post(new Runnable() {
                 @Override
                 public void run() {
@@ -604,4 +617,42 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 break;
         }
     }
+
+    /**
+     * 获取跟踪算法返回的结果
+     * @param l_x
+     * @param l_y
+     * @param r_x
+     * @param r_y
+     */
+    public void writeAprilTagsStatus(final int l_x, final int l_y, final int r_x, final int r_y) {
+        // 将数据写入文件，包括每次识别后：停机坪框的中心与屏幕中心在x轴和y轴的距离差、无人机高度、x方向和y方向的控制量、当前时间
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (WriteFileUtil.isExternalStorageWritable()) {
+                    String status = Environment.getExternalStorageState();
+                    if (status.equals(Environment.MEDIA_MOUNTED)) {
+                        File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/tracking/");
+                        if (!dir.exists()) {
+                            dir.mkdir();
+                        }
+                        WriteFileUtil.putStringToExternalStorage(l_x + "\r\n", dir, "l_x.txt", true);
+                        WriteFileUtil.putStringToExternalStorage(l_y + "\r\n", dir, "l_y.txt", true);
+                        WriteFileUtil.putStringToExternalStorage(r_x + "\r\n", dir, "r_x.txt", true);
+                        WriteFileUtil.putStringToExternalStorage(r_y + "\r\n", dir, "r_y.txt", true);
+                        WriteFileUtil.putStringToExternalStorage(currentTime() + "\r\n", dir, "time_.txt", true);
+
+                    }
+                }
+            }
+        });
+    }
+
+    private String currentTime() {
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+        Date curDate = new Date(System.currentTimeMillis());
+        return sdf.format(curDate);
+    }
+
 }
