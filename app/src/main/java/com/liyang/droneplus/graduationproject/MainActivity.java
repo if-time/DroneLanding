@@ -25,6 +25,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.jakewharton.rxbinding2.view.RxView;
@@ -113,6 +114,8 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private Button btnThermal;
     private Button btnThread;
 
+    private TextView tvFPS;
+
     private ImageView imageViewForFrame;
 
     private TouchPaintView touchView;
@@ -158,6 +161,8 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         touchView = (TouchPaintView) findViewById(R.id.touch_view);
 
         trackingOverlay = (OverlayView) findViewById(R.id.tracking_overlay);
+
+        tvFPS = findViewById(R.id.tvFPS);
 
         RxView.clicks(btnThermal).throttleFirst(2, TimeUnit.SECONDS).subscribe(new Consumer<Object>() {
             @Override
@@ -471,6 +476,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 break;
             case USE_TENSORFLOW:
                 detectionForTensorFlow();
+                break;
             default:
                 break;
         }
@@ -501,6 +507,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             FDSSTResultFormJNI result = NativeHelper.getInstance().usingFdsst(bitmap, bitmap.getWidth(), bitmap.getHeight());
             bitmap.recycle();
             showToast("ms: " + (System.currentTimeMillis() - start));
+            setFPS(1000 / (System.currentTimeMillis() - start));
             Paint paint = new Paint();
             paint.setColor(Color.RED);
             paint.setStyle(Paint.Style.STROKE);
@@ -708,6 +715,15 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
         Date curDate = new Date(System.currentTimeMillis());
         return sdf.format(curDate);
+    }
+
+    private void setFPS(final long fps) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                tvFPS.setText("FPS: " + fps);
+            }
+        });
     }
 
 }
