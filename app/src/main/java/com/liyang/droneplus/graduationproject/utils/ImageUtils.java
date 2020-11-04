@@ -8,14 +8,14 @@ import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
 
 /**
- *
- * @date 2020/10/31 16:32
  * @author dongsiyuan
+ * @date 2020/10/31 16:32
  */
 public class ImageUtils {
 
     /**
      * 使用libyuv通过Bitmap获得nv21
+     *
      * @param bitmap
      * @return
      */
@@ -49,6 +49,7 @@ public class ImageUtils {
 
     /**
      * 封装的JNI接口方法直接接收cv::Mat
+     *
      * @param bitmap
      * @return
      */
@@ -59,5 +60,4 @@ public class ImageUtils {
         Imgproc.cvtColor(mat, mat, Imgproc.COLOR_BGRA2BGR);
         return mat;
     }
-
 }

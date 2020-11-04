@@ -8,6 +8,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+/**
+ * 写日志
+ * @author dongsiyuan
+ * @time 2020/11/3 10:16
+ */
 public class WriteFileUtil {
     public static void putStringToExternalStorage(String content, File parent, String fileName, boolean append){
 

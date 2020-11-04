@@ -107,6 +107,8 @@ public class TouchPaintView extends View {
                 break;
             case MotionEvent.ACTION_UP:
                 break;
+            default:
+                break;
         }
         return true;
     }
